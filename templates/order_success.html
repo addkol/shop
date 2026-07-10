@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}Заказ {{ order.order_number }} | Онлайн Магазин{% endblock %}
+
+{% block content %}
+<div class="row g-5 align-items-start">
+  <div class="col-lg-7">
+    <h1 class="h2">Заказ {{ order.order_number }}</h1>
+    <p class="text-muted">Статус оплаты: {{ order.get_payment_status_display }}. Статус заказа: {{ order.get_status_display }}.</p>
+    {% if order.cancellation_reason %}
+      <div class="alert mb-4">Причина отмены: {{ order.cancellation_reason }}</div>
+    {% endif %}
+    <div class="table-responsive mt-4">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Товар</th>
+            <th class="text-center">Количество</th>
+            <th class="text-end">Сумма</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in order.items.all %}
+            <tr>
+              <td>{{ item.product_name }}</td>
+              <td class="text-center">{{ item.quantity }}</td>
+              <td class="text-end">{{ item.subtotal }} сом</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <strong class="fs-4">Итого: {{ order.total_price }} сом</strong>
+  </div>
+  <div class="col-lg-5">
+    <div class="summary-panel text-center">
+      <h2 class="h5">Оплата Finik</h2>
+      {% if order.qr_code %}
+        <img src="{{ order.qr_code }}" alt="QR-код оплаты" class="qr-code my-3">
+      {% endif %}
+      {% if order.payment_link %}
+        <a class="btn btn-dark w-100" href="{{ order.payment_link }}" target="_blank" rel="noopener">Открыть ссылку на оплату</a>
+      {% else %}
+        <p class="text-muted mb-0">Ссылка оплаты пока недоступна.</p>
+      {% endif %}
+
+      {% if order.can_be_cancelled %}
+        <form method="post" action="{% url 'shop:cancel-order' order.order_number %}" class="cancel-order-form mt-4">
+          {% csrf_token %}
+          <label class="form-label" for="cancel-reason">Отказаться от заказа</label>
+          <textarea id="cancel-reason" name="reason" rows="3" required minlength="5" maxlength="500" class="form-control" placeholder="Укажите причину отказа"></textarea>
+          <button class="btn btn-outline-dark w-100 mt-3" type="submit">Отменить заказ</button>
+        </form>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

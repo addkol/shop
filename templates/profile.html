@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+
+{% block title %}Профиль | Онлайн Магазин{% endblock %}
+
+{% block content %}
+<div class="profile-layout">
+  <aside class="profile-sidebar">
+    <h1 class="h2">Профиль</h1>
+    <dl class="profile-list">
+      <dt>Номер телефона</dt>
+      <dd>{{ request.user.phone_number|default:"Не указан" }}</dd>
+      <dt>Электронная почта</dt>
+      <dd>{{ request.user.email|default:"Не указана" }}</dd>
+      <dt>Имя</dt>
+      <dd>{{ request.user.get_full_name|default:"Не указано" }}</dd>
+    </dl>
+
+    <h2 class="h5 mt-4">Адреса</h2>
+    {% for address in addresses %}
+      <div class="profile-address">{{ address }}</div>
+    {% empty %}
+      <p class="text-muted small">Сохраненных адресов пока нет.</p>
+    {% endfor %}
+  </aside>
+
+  <main class="profile-content">
+    <section class="profile-section">
+      <div class="section-title-row">
+        <div>
+          <span class="section-kicker">Ожидают действия</span>
+          <h2 class="h4">Неоплаченные заказы</h2>
+        </div>
+        <span class="badge text-bg-dark">{{ unpaid_orders|length }}</span>
+      </div>
+
+      {% for order in unpaid_orders %}
+        <article class="order-card unpaid-order-card">
+          <div class="order-card-head">
+            <div>
+              <a class="order-number" href="{{ order.get_absolute_url }}">{{ order.order_number }}</a>
+              <div class="small text-muted">{{ order.created_at|date:"d.m.Y H:i" }}</div>
+            </div>
+            <strong>{{ order.total_price }} сом</strong>
+          </div>
+          <div class="order-items-line">
+            {% for item in order.items.all %}
+              <span>{{ item.product_name }} × {{ item.quantity }}</span>
+            {% endfor %}
+          </div>
+          <div class="order-actions">
+            <a class="btn btn-dark btn-sm" href="{{ order.get_absolute_url }}">Оплатить</a>
+            <form method="post" action="{% url 'shop:cancel-order' order.order_number %}" class="cancel-order-form">
+              {% csrf_token %}
+              <textarea name="reason" rows="2" required minlength="5" maxlength="500" class="form-control" placeholder="Причина отказа"></textarea>
+              <button class="btn btn-outline-dark btn-sm" type="submit">Отказаться</button>
+            </form>
+          </div>
+        </article>
+      {% empty %}
+        <div class="empty-state">Неоплаченных заказов нет.</div>
+      {% endfor %}
+    </section>
+
+    <section class="profile-section">
+      <div class="section-title-row">
+        <div>
+          <span class="section-kicker">Все заказы</span>
+          <h2 class="h4">История заказов</h2>
+        </div>
+      </div>
+
+      {% for order in orders %}
+        <article class="order-card">
+          <div class="order-card-head">
+            <div>
+              <a class="order-number" href="{{ order.get_absolute_url }}">{{ order.order_number }}</a>
+              <div class="small text-muted">{{ order.created_at|date:"d.m.Y H:i" }}</div>
+            </div>
+            <div class="order-statuses">
+              <strong>{{ order.total_price }} сом</strong>
+              <span>{{ order.get_status_display }} / {{ order.get_payment_status_display }}</span>
+            </div>
+          </div>
+          {% if order.cancellation_reason %}
+            <div class="cancel-reason">Причина отмены: {{ order.cancellation_reason }}</div>
+          {% endif %}
+        </article>
+      {% empty %}
+        <div class="empty-state">Заказов пока нет.</div>
+      {% endfor %}
+    </section>
+  </main>
+</div>
+{% endblock %}

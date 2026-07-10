@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ product.name }} | Онлайн Магазин{% endblock %}
+
+{% block content %}
+<div class="product-detail-layout">
+  <section class="product-gallery" aria-label="Медиа товара">
+    <div class="gallery-stage">
+      {% if media_items %}
+        {% for item in media_items %}
+          {% if item.type == "image" %}
+            <img
+              src="{{ item.url }}"
+              alt="{{ item.alt }}"
+              class="gallery-media {% if not forloop.first %}d-none{% endif %}"
+              data-gallery-item="{{ forloop.counter0 }}"
+            >
+          {% else %}
+            <video
+              controls
+              class="gallery-media {% if not forloop.first %}d-none{% endif %}"
+              data-gallery-item="{{ forloop.counter0 }}"
+            >
+              <source src="{{ item.url }}" type="video/mp4">
+            </video>
+          {% endif %}
+        {% endfor %}
+      {% else %}
+        <img src="{% static 'img/no-image.svg' %}" alt="{{ product.name }}" class="gallery-media">
+      {% endif %}
+    </div>
+
+    {% if media_items|length > 1 %}
+      <div class="gallery-thumbs" aria-label="Переключение фото и видео">
+        {% for item in media_items %}
+          <button
+            class="gallery-thumb {% if forloop.first %}active{% endif %}"
+            type="button"
+            data-gallery-thumb="{{ forloop.counter0 }}"
+            aria-label="Показать {{ item.label }}"
+          >
+            {% if item.type == "image" %}
+              <img src="{{ item.url }}" alt="">
+            {% else %}
+              <span class="video-thumb">Видео</span>
+            {% endif %}
+          </button>
+        {% endfor %}
+      </div>
+    {% endif %}
+  </section>
+
+  <section class="product-info">
+    <div class="small text-muted mb-2">{{ product.category.name }}</div>
+    <h1 class="product-heading">{{ product.name }}</h1>
+    <p class="product-description">{{ product.description }}</p>
+    {% if product.additional_description %}
+      <div class="product-extra">{{ product.additional_description|linebreaksbr }}</div>
+    {% endif %}
+
+    <section class="price-panel" aria-label="Цена товара">
+      <div class="price-label">Оптовая цена</div>
+      <div class="price-row">
+        <strong class="price-main">{{ best_price }} сом</strong>
+        <span class="price-regular">обычная цена {{ product.price }} сом</span>
+      </div>
+      {% if product.wholesale_prices.all %}
+        <div class="tier-grid">
+          {% for rule in product.wholesale_prices.all %}
+            <div class="tier-card" data-tier-min="{{ rule.min_quantity }}">
+              <span>от {{ rule.min_quantity }} шт.</span>
+              <strong>{{ rule.price }} сом</strong>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="tier-empty">Оптовые диапазоны пока не заданы.</div>
+      {% endif %}
+    </section>
+
+    <form class="purchase-panel" method="post" action="{% url 'shop:add-to-cart' product.id %}" id="purchaseForm">
+      {% csrf_token %}
+      <div class="stock-line">
+        <span class="badge {% if product.available %}text-bg-success{% else %}text-bg-secondary{% endif %}">
+          {% if product.available %}В наличии: {{ product.stock }}{% else %}Нет в наличии{% endif %}
+        </span>
+      </div>
+
+      <div class="quantity-control">
+        <label class="form-label mb-0" for="quantityInput">Кол-во</label>
+        <input
+          type="number"
+          name="quantity"
+          id="quantityInput"
+          class="form-control quantity-input-lg"
+          value="1"
+          min="1"
+          max="{{ product.stock }}"
+          data-base-price="{{ base_price }}"
+        >
+      </div>
+
+      <div class="calculator-grid" aria-live="polite">
+        <div>
+          <span>Цена за 1 шт.</span>
+          <strong id="unitPrice">{{ initial_unit_price }} сом</strong>
+        </div>
+        <div>
+          <span>Общая стоимость</span>
+          <strong id="totalPrice">{{ initial_unit_price }} сом</strong>
+        </div>
+      </div>
+
+      <button class="btn btn-dark btn-lg w-100" type="submit" {% if not product.available %}disabled{% endif %}>
+        Добавить в корзину
+      </button>
+    </form>
+  </section>
+</div>
+
+{{ pricing_tiers|json_script:"pricing-tiers" }}
+<script>
+  (() => {
+    const galleryItems = document.querySelectorAll("[data-gallery-item]");
+    const galleryThumbs = document.querySelectorAll("[data-gallery-thumb]");
+
+    galleryThumbs.forEach((thumb) => {
+      thumb.addEventListener("click", () => {
+        const target = thumb.dataset.galleryThumb;
+        galleryItems.forEach((item) => {
+          const isActive = item.dataset.galleryItem === target;
+          item.classList.toggle("d-none", !isActive);
+          if (!isActive && item.tagName === "VIDEO") {
+            item.pause();
+          }
+        });
+        galleryThumbs.forEach((item) => item.classList.remove("active"));
+        thumb.classList.add("active");
+      });
+    });
+
+    const quantityInput = document.getElementById("quantityInput");
+    const unitPrice = document.getElementById("unitPrice");
+    const totalPrice = document.getElementById("totalPrice");
+    const tierCards = document.querySelectorAll("[data-tier-min]");
+    const tiersNode = document.getElementById("pricing-tiers");
+
+    if (!quantityInput || !unitPrice || !totalPrice || !tiersNode) {
+      return;
+    }
+
+    const basePrice = Number(quantityInput.dataset.basePrice);
+    const tiers = JSON.parse(tiersNode.textContent)
+      .map((tier) => ({ minQuantity: Number(tier.min_quantity), price: Number(tier.price) }))
+      .sort((left, right) => left.minQuantity - right.minQuantity);
+
+    const formatPrice = (value) =>
+      `${value.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} сом`;
+
+    const getPriceForQuantity = (quantity) => {
+      let activeTier = null;
+      tiers.forEach((tier) => {
+        if (quantity >= tier.minQuantity) {
+          activeTier = tier;
+        }
+      });
+      return { price: activeTier ? activeTier.price : basePrice, activeTier };
+    };
+
+    const updateCalculator = () => {
+      const maxQuantity = Number(quantityInput.max) || 1;
+      const quantity = Math.min(Math.max(Number(quantityInput.value) || 1, 1), maxQuantity);
+      quantityInput.value = quantity;
+
+      const { price, activeTier } = getPriceForQuantity(quantity);
+      unitPrice.textContent = formatPrice(price);
+      totalPrice.textContent = formatPrice(price * quantity);
+
+      tierCards.forEach((card) => {
+        card.classList.toggle(
+          "active",
+          Boolean(activeTier && Number(card.dataset.tierMin) === activeTier.minQuantity)
+        );
+      });
+    };
+
+    quantityInput.addEventListener("input", updateCalculator);
+    updateCalculator();
+  })();
+</script>
+{% endblock %}

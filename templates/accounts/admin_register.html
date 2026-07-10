@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block title %}Регистрация администратора | Онлайн Магазин{% endblock %}
+
+{% block content %}
+<div class="auth-panel mx-auto">
+  <h1 class="h3 mb-3">Регистрация администратора</h1>
+  <form method="post" novalidate>
+    {% csrf_token %}
+    {% for field in form %}
+      <div class="mb-3">
+        <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+        {{ field }}
+        {% for error in field.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+      </div>
+    {% endfor %}
+    <button class="btn btn-dark w-100" type="submit">Отправить код подтверждения</button>
+  </form>
+</div>
+{% endblock %}

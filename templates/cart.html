@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block title %}Корзина | Онлайн Магазин{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center gap-3 mb-4">
+  <div>
+    <h1 class="h2 mb-1">Корзина</h1>
+    <p class="text-muted mb-0">Просмотрите продукты перед оформлением.</p>
+  </div>
+  <a class="btn btn-outline-dark" href="{% url 'shop:index' %}">Продолжить покупки</a>
+</div>
+
+{% if cart_rows %}
+  <div class="table-responsive">
+    <table class="table align-middle">
+      <thead>
+        <tr>
+          <th>Товар</th>
+          <th class="text-center">Количество</th>
+          <th class="text-end">Сумма</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in cart_rows %}
+          <tr>
+            <td>
+              <div class="fw-semibold">{{ row.product.name }}</div>
+              <div class="small text-muted">{{ row.unit_price }} сом за шт.</div>
+            </td>
+            <td class="text-center">
+              <form method="post" action="{% url 'shop:update-cart' row.product.id %}" class="cart-quantity-form">
+                {% csrf_token %}
+                <input type="number" name="quantity" class="form-control form-control-sm quantity-input" value="{{ row.quantity }}" min="0" max="{{ row.product.stock }}" aria-label="Количество">
+                <button class="btn btn-outline-dark btn-sm quantity-save" type="submit" title="Обновить количество" aria-label="Обновить количество">OK</button>
+              </form>
+            </td>
+            <td class="text-end fw-semibold">{{ row.subtotal }} сом</td>
+            <td class="text-end">
+              <form method="post" action="{% url 'shop:remove-from-cart' row.product.id %}">
+                {% csrf_token %}
+                <button class="btn btn-link text-danger p-0" type="submit">Удалить</button>
+              </form>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 border-top pt-4">
+    <strong class="fs-4">Итого: {{ cart_total }} сом</strong>
+    {% if request.user.is_authenticated %}
+      <a class="btn btn-dark btn-lg" href="{% url 'shop:checkout' %}">Оформить заказ</a>
+    {% else %}
+      <a class="btn btn-dark btn-lg" href="{% url 'accounts:login' %}">Войти для оформления</a>
+    {% endif %}
+  </div>
+{% else %}
+  <div class="empty-state">Корзина пуста.</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block title %}Подтверждение телефона | Онлайн Магазин{% endblock %}
+
+{% block content %}
+<div class="auth-panel mx-auto">
+  <h1 class="h3 mb-2">Подтвердить телефон</h1>
+  <p class="text-muted">Введите 4-значный код, отправленный на {{ phone_number }}.</p>
+  <form method="post" novalidate>
+    {% csrf_token %}
+    {% for field in form %}
+      <div class="mb-3">
+        <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+        {{ field }}
+        {% for error in field.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+      </div>
+    {% endfor %}
+    <button class="btn btn-dark w-100" type="submit">Подтвердить</button>
+  </form>
+</div>
+{% endblock %}

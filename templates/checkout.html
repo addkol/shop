@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block title %}Оформление | Онлайн Магазин{% endblock %}
+
+{% block content %}
+<div class="checkout-layout">
+  <section class="checkout-main">
+    <div class="checkout-header">
+      <span>Шаг 1 из 2</span>
+      <h1>Оформление заказа</h1>
+      <p>Проверьте адрес доставки и выберите удобный способ оплаты.</p>
+    </div>
+
+    <form method="post" novalidate class="checkout-form">
+      {% csrf_token %}
+      {% if form.non_field_errors %}
+        <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+      {% endif %}
+
+      <div class="checkout-section">
+        <h2 class="h5">Адрес доставки</h2>
+        <div class="checkout-fields">
+          {% for field in form %}
+            {% if field.name != "payment_method" and field.name != "save_address" %}
+              <div class="checkout-field checkout-field-{{ field.name }}">
+                <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {{ field }}
+                {% for error in field.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+              </div>
+            {% endif %}
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="checkout-section">
+        <h2 class="h5">Способ оплаты</h2>
+        <div class="payment-options">
+          {% for choice in form.payment_method %}
+            <label class="payment-option" for="{{ choice.id_for_label }}">
+              {{ choice.tag }}
+              <span>{{ choice.choice_label }}</span>
+            </label>
+          {% endfor %}
+        </div>
+      </div>
+
+      <button class="btn btn-dark btn-lg checkout-submit" type="submit">Оформить заказ</button>
+    </form>
+  </section>
+
+  <aside class="checkout-summary">
+    <div class="summary-panel checkout-summary-panel">
+      <h2 class="h5">Ваш заказ</h2>
+      <div class="checkout-items">
+        {% for row in cart_rows %}
+          <div class="checkout-item">
+            <div>
+              <strong>{{ row.product.name }}</strong>
+              <span>{{ row.quantity }} шт. · {{ row.unit_price }} сом</span>
+            </div>
+            <b>{{ row.subtotal }} сом</b>
+          </div>
+        {% endfor %}
+      </div>
+      <div class="checkout-total">
+        <span>Итого</span>
+        <strong>{{ cart_total }} сом</strong>
+      </div>
+    </div>
+  </aside>
+</div>
+{% endblock %}

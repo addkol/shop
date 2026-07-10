@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Каталог | Онлайн Магазин{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column flex-lg-row align-items-lg-end justify-content-between gap-3 mb-4">
+  <div>
+    <h1 class="h2 mb-1">{% if current_category %}{{ current_category.name }}{% else %}Каталог{% endif %}</h1>
+    <p class="text-muted mb-0">Новые товары с лёгким оформлением и оплатой QR.</p>
+  </div>
+  <div class="category-strip d-flex flex-wrap gap-2">
+    <a class="btn btn-sm {% if not current_category %}btn-dark{% else %}btn-outline-dark{% endif %}" href="{% url 'shop:index' %}">Все</a>
+    {% for category in categories %}
+      <a class="btn btn-sm {% if current_category == category %}btn-dark{% else %}btn-outline-dark{% endif %}" href="{{ category.get_absolute_url }}">{{ category.name }}</a>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="row g-4">
+  {% for product in page_obj %}
+    <div class="col-12 col-sm-6 col-lg-4 col-xl-3">
+      <article class="product-card h-100">
+        <a href="{{ product.get_absolute_url }}" class="product-image-link">
+          {% with main_image_url=product.main_image_url %}
+          {% if main_image_url %}
+            <img src="{{ main_image_url }}" alt="{{ product.name }}" class="product-image">
+          {% else %}
+            <img src="{% static 'img/no-image.svg' %}" alt="{{ product.name }}" class="product-image">
+          {% endif %}
+          {% endwith %}
+        </a>
+        <div class="p-3">
+          <div class="small text-muted mb-1">{{ product.category.name }}</div>
+          <h2 class="h6 product-title"><a href="{{ product.get_absolute_url }}">{{ product.name }}</a></h2>
+          <div class="d-flex align-items-center justify-content-between gap-2 mt-3">
+            <strong>{{ product.price }} сом</strong>
+            <form method="post" action="{% url 'shop:add-to-cart' product.id %}">
+              {% csrf_token %}
+              <input type="hidden" name="next" value="{{ request.get_full_path }}">
+              <button class="btn btn-dark btn-sm" type="submit" {% if not product.available %}disabled{% endif %}>Добавить</button>
+            </form>
+          </div>
+        </div>
+      </article>
+    </div>
+  {% empty %}
+    <div class="col-12">
+      <div class="empty-state">Нет доступных товаров.</div>
+    </div>
+  {% endfor %}
+</div>
+
+{% if page_obj.paginator.num_pages > 1 %}
+  <nav class="mt-4" aria-label="Страницы каталога">
+    <ul class="pagination">
+      {% if page_obj.has_previous %}
+        <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">Назад</a></li>
+      {% endif %}
+      <li class="page-item active"><span class="page-link">{{ page_obj.number }}</span></li>
+      {% if page_obj.has_next %}
+        <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">Далее</a></li>
+      {% endif %}
+    </ul>
+  </nav>
+{% endif %}
+{% endblock %}
