@@ -10,8 +10,15 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = config("SECRET_KEY", default="change-me-in-production")
 DEBUG = config("DEBUG", default=True, cast=bool)
 ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="127.0.0.1,localhost", cast=Csv())
+DEFAULT_CSRF_TRUSTED_ORIGINS = "https://*.trycloudflare.com" if DEBUG else ""
 CSRF_TRUSTED_ORIGINS = [
-    origin for origin in config("CSRF_TRUSTED_ORIGINS", default="", cast=Csv()) if origin
+    origin
+    for origin in config(
+        "CSRF_TRUSTED_ORIGINS",
+        default=DEFAULT_CSRF_TRUSTED_ORIGINS,
+        cast=Csv(),
+    )
+    if origin
 ]
 
 INSTALLED_APPS = [
