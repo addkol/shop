@@ -76,7 +76,7 @@ def production_configuration_check(app_configs, **kwargs):
         errors.append(_error("Не заполнены настройки Twilio.", "project.E016"))
     if "console" in settings.EMAIL_BACKEND:
         errors.append(_error("Console email backend запрещён в production.", "project.E017"))
-    elif "smtp" in settings.EMAIL_BACKEND and not all(
+    elif settings.ADMIN_EMAIL_VERIFICATION_ENABLED and "smtp" in settings.EMAIL_BACKEND and not all(
         _configured(value)
         for value in [settings.EMAIL_HOST, settings.EMAIL_HOST_USER, settings.EMAIL_HOST_PASSWORD]
     ):
@@ -84,7 +84,7 @@ def production_configuration_check(app_configs, **kwargs):
 
     if settings.FINIK_USE_STUB:
         errors.append(_error("FINIK_USE_STUB должен быть отключён.", "project.E018"))
-    if not all(
+    if settings.PAYMENT_ENABLED and not all(
         _configured(value)
         for value in [
             settings.FINIK_API_KEY,
@@ -94,10 +94,10 @@ def production_configuration_check(app_configs, **kwargs):
         ]
     ):
         errors.append(_error("Не заполнены production-ключи Finik.", "project.E019"))
-    if urlparse(settings.FINIK_API_URL).hostname != "api.acquiring.averspay.kg":
+    if settings.PAYMENT_ENABLED and urlparse(settings.FINIK_API_URL).hostname != "api.acquiring.averspay.kg":
         errors.append(_error("Production должен использовать production endpoint Finik.", "project.E020"))
     status_url = urlparse(settings.FINIK_STATUS_API_URL.replace("{payment_id}", "test-payment"))
-    if status_url.scheme != "https" or status_url.hostname != "api.acquiring.averspay.kg":
+    if settings.PAYMENT_ENABLED and (status_url.scheme != "https" or status_url.hostname != "api.acquiring.averspay.kg"):
         errors.append(
             _error(
                 "FINIK_STATUS_API_URL должен быть production HTTPS endpoint Finik.",
@@ -123,6 +123,10 @@ def production_configuration_check(app_configs, **kwargs):
                 id="project.W001",
             )
         )
+    if not settings.PAYMENT_ENABLED:
+        errors.append(checks.Warning("Онлайн-оплата отключена: заказы не оплачиваются, webhook и сверка Finik отключены.", id="project.W003"))
+    if not settings.ADMIN_EMAIL_VERIFICATION_ENABLED:
+        errors.append(checks.Warning("Email-регистрация и подтверждение новых администраторов отключены. Используйте createsuperuser или существующего владельца.", id="project.W004"))
     return errors
 
 

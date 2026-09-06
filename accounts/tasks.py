@@ -35,6 +35,8 @@ def send_sms_code(phone_number, code):
 
 @shared_task
 def send_admin_verification_email(email, verification_url):
+    if not settings.ADMIN_EMAIL_VERIFICATION_ENABLED:
+        return "admin-email-disabled"
     send_mail(
         "Подтвердите аккаунт администратора Элит Маркет",
         f"Откройте ссылку для подтверждения аккаунта администратора: {verification_url}",

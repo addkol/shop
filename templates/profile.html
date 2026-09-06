@@ -49,7 +49,7 @@
             {% endfor %}
           </div>
           <div class="order-actions">
-            <a class="btn btn-dark btn-sm" href="{{ order.get_absolute_url }}">Оплатить</a>
+            <a class="btn btn-dark btn-sm" href="{{ order.get_absolute_url }}">{% if payment_enabled %}Оплатить{% else %}Посмотреть заказ{% endif %}</a>
             <form method="post" action="{% url 'shop:cancel-order' order.order_number %}" class="cancel-order-form">
               {% csrf_token %}
               <textarea name="reason" rows="2" required minlength="5" maxlength="500" class="form-control" placeholder="Причина отказа"></textarea>

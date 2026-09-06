@@ -36,6 +36,8 @@ def _request_signing_headers(request):
 @csrf_exempt
 @require_POST
 def finik_webhook(request):
+    if not settings.PAYMENT_ENABLED:
+        return JsonResponse({"detail": "Онлайн-оплата временно недоступна."}, status=503)
     if len(request.body) > settings.PAYMENT_WEBHOOK_MAX_BODY_BYTES:
         return JsonResponse({"detail": "Тело webhook слишком большое."}, status=413)
     try:
@@ -98,7 +100,7 @@ def finik_webhook(request):
 
 @login_required
 def stub_payment(request, payment_id):
-    if not settings.FINIK_USE_STUB:
+    if not settings.PAYMENT_ENABLED or not settings.FINIK_USE_STUB:
         raise Http404
     order = get_object_or_404(Order, payment_id=payment_id, user=request.user)
     if request.method == "POST":

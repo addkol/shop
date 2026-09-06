@@ -1,10 +1,12 @@
 from .cart import get_cart_rows
+from django.conf import settings
 from .models import Category
 
 
 def cart_summary(request):
     rows, total = get_cart_rows(request)
     return {
+        "payment_enabled": settings.PAYMENT_ENABLED,
         "cart_quantity": sum(row["quantity"] for row in rows),
         "cart_preview_rows": rows[:4],
         "cart_preview_total": total,

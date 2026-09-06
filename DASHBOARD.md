@@ -25,7 +25,8 @@ Staff/superuser/admin не могут получить доступ через �
 Флаг phone_verified при таком входе технически выставляется существующим flow, но это не доказательство владения SIM.
 Django выдаёт project.W002 (WARNING), запуск не блокируется. Неверный формат кода — project.E030.
 SMS production checks E015/E016 освобождены только при непустом FIXED_OTP_CODE.
-Проверки HTTPS, cookies, CSRF, PostgreSQL, Redis, Celery, Finik, SMTP и upload validators не отключаются.
+Проверки HTTPS, cookies, CSRF, PostgreSQL, Redis, Celery и upload validators не отключаются.
+Finik/SMTP обязательны для включённых функций; явное отключение для показа описано в [PAYMENTS_DISABLED.md](PAYMENTS_DISABLED.md).
 
 Для настоящих продаж:
 1. Заполните Twilio или реализуйте и протестируйте другого SMS-провайдера.
@@ -127,9 +128,10 @@ StockForm требует причину и expected_stock; сервис блок
 Выполнен реальный HTTPS browser flow: регистрация → 1234 → товар → корзина → checkout → заказ → dashboard.
 При недоступном Finik заказ остаётся ожидающим оплаты; реального успешного платежа этим тестом не подтверждено.
 
-**Остался внешний блокер предыдущего аудита:** реальный FINIK_STATUS_API_URL/контракт acquiring API,
+**Для реальных платежей остаётся внешний блокер:** реальный FINIK_STATUS_API_URL/контракт acquiring API,
 ключи и проверка Finik sandbox. В QA были синтетические ключи; это не готовые production credentials.
 Не подставляйте фиктивные секреты, чтобы пройти checks на сервере.
-Нужны также SMTP, домен/DNS/TLS, секреты PostgreSQL/Django, права media, off-server backup.
+Для показа без платежей/SMTP используйте PAYMENT_ENABLED=False и ADMIN_EMAIL_VERIFICATION_ENABLED=False.
+Домен/DNS/TLS, секреты PostgreSQL/Django, права media и off-server backup всё равно необходимы.
 Порты 5432/6379 в production Compose не публикуются; web по умолчанию только 127.0.0.1:8010.
 Hetzner, commit, push и серверный deploy этой задачей не выполнялись.

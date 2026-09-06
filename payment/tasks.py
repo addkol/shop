@@ -61,6 +61,8 @@ def _record_reconciliation_error(order_id, checked_at, message):
     time_limit=330,
 )
 def reconcile_pending_payments_task(limit=None):
+    if not settings.PAYMENT_ENABLED:
+        return {"skipped": "payment_disabled"}
     with reconciliation_lock() as acquired:
         if not acquired:
             return {"skipped": "already_running"}
@@ -69,7 +71,7 @@ def reconcile_pending_payments_task(limit=None):
 
 def reconcile_pending_payments(limit=None):
     stats = {"checked": 0, "pending": 0, "processed": 0, "duplicates": 0, "errors": 0}
-    if settings.FINIK_USE_STUB:
+    if not settings.PAYMENT_ENABLED or settings.FINIK_USE_STUB:
         return stats
 
     now = timezone.now()

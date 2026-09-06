@@ -314,6 +314,9 @@ def checkout(request):
             messages.error(request, str(exc))
             return redirect("shop:cart")
 
+        if not settings.PAYMENT_ENABLED:
+            messages.info(request, "Заказ создан. Онлайн-оплата временно недоступна. Заказ не оплачен.")
+            return redirect(order.get_absolute_url())
         try:
             create_payment(order, request=request)
         except PaymentGatewayError as exc:
@@ -339,6 +342,9 @@ def order_success(request, order_number):
 @require_POST
 def retry_payment(request, order_number):
     order = get_object_or_404(Order, order_number=order_number, user=request.user)
+    if not settings.PAYMENT_ENABLED:
+        messages.info(request, "Онлайн-оплата временно недоступна.")
+        return redirect(order.get_absolute_url())
     if not order.can_be_paid:
         messages.error(request, "Срок оплаты истёк или заказ уже обработан.")
         return redirect(order.get_absolute_url())

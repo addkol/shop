@@ -4,7 +4,8 @@
 setup_dashboard_roles и назначьте сотрудникам is_staff и нужную группу.
 Полная инструкция, точные права и временный FIXED_OTP_CODE описаны в [DASHBOARD.md](DASHBOARD.md).
 Общий OTP разрешён в production только как явное SMS-исключение с предупреждением;
-он не отменяет обязательные Finik/SMTP/HTTPS/DB/Redis проверки.
+он не отменяет проверки остальных включённых функций. Для показа без Finik/SMTP используйте
+отдельные флаги из [PAYMENTS_DISABLED.md](PAYMENTS_DISABLED.md); HTTPS/DB/Redis остаются обязательными.
 
 Проект запускается как отдельный Docker Compose project `elit-market`. Он использует собственные PostgreSQL/Redis volumes и публикует только Django на `127.0.0.1:8010`. PostgreSQL `5432` и Redis `6379` на host не публикуются, поэтому существующий PostgreSQL другого проекта не конфликтует с OnlineShop.
 

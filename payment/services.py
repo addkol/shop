@@ -96,6 +96,8 @@ def record_payment_error(order, message):
 
 
 def create_payment(order, request=None):
+    if not settings.PAYMENT_ENABLED:
+        raise PaymentGatewayError("Онлайн-оплата временно недоступна.")
     if not order.can_be_paid:
         raise PaymentGatewayError("Этот заказ уже нельзя оплатить.")
 
@@ -209,6 +211,8 @@ def mark_order_paid(order):
 
 
 def check_payment_status(payment_id):
+    if not settings.PAYMENT_ENABLED:
+        raise PaymentGatewayError("Онлайн-оплата временно недоступна.")
     if settings.FINIK_USE_STUB:
         return {"payment_id": payment_id, "status": "waiting"}
 

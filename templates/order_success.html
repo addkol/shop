@@ -37,26 +37,27 @@
   </div>
   <div class="col-lg-5">
     <div class="summary-panel text-center">
-      <h2 class="h5">Оплата Finik</h2>
+      <h2 class="h5">Оплата заказа</h2>
+      {% if not payment_enabled %}<div class="alert alert-warning">Онлайн-оплата временно недоступна.</div>{% endif %}
       {% if order.payment_status == "success" %}
         <div class="alert alert-success">Заказ оплачен. Мы начали его обработку.</div>
       {% elif order.payment_status == "refund_required" %}
         <div class="alert alert-warning">Оплата поступила после отмены заказа. Служба поддержки оформит возврат.</div>
-      {% elif order.can_be_paid and order.qr_code %}
+      {% elif payment_enabled and order.can_be_paid and order.qr_code %}
         <img src="{{ order.qr_code }}" alt="QR-код оплаты" class="qr-code my-3">
       {% endif %}
-      {% if order.can_be_paid and order.payment_link %}
+      {% if payment_enabled and order.can_be_paid and order.payment_link %}
         <a class="btn btn-dark w-100" href="{{ order.payment_link }}" target="_blank" rel="noopener">Открыть ссылку на оплату</a>
-      {% elif order.can_be_paid %}
+      {% elif payment_enabled and order.can_be_paid %}
         <p class="text-muted mb-0">Ссылка оплаты пока недоступна.</p>
       {% endif %}
-      {% if order.payment_last_error and order.payment_status != "refund_required" %}<div class="alert alert-warning mt-3">{{ order.payment_last_error }}</div>{% endif %}
-      {% if order.can_be_paid %}
+      {% if payment_enabled and order.payment_last_error and order.payment_status != "refund_required" %}<div class="alert alert-warning mt-3">{{ order.payment_last_error }}</div>{% endif %}
+      {% if payment_enabled and order.can_be_paid %}
         <form method="post" action="{% url 'shop:retry-payment' order.order_number %}" class="mt-3">
           {% csrf_token %}
           <button class="btn btn-outline-primary w-100" type="submit">{% if order.payment_link %}Обновить ссылку оплаты{% else %}Создать ссылку оплаты{% endif %}</button>
         </form>
-      {% elif order.status == "pending" %}
+      {% elif order.status == "pending" and not order.can_be_paid %}
         <div class="alert alert-warning">Срок оплаты истёк. Резерв будет автоматически возвращён на склад.</div>
       {% endif %}
 

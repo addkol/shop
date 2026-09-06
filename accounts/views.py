@@ -7,6 +7,7 @@ from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
+from django.http import HttpResponse
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
@@ -244,6 +245,8 @@ def verify_code(request):
 @login_required(login_url="admin:login")
 @user_passes_test(lambda user: user.is_superuser, login_url="admin:login")
 def register_admin(request):
+    if not settings.ADMIN_EMAIL_VERIFICATION_ENABLED:
+        return HttpResponse("Регистрация администраторов по email временно отключена.", status=503)
     form = AdminRegistrationForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
         user = form.save()
@@ -289,6 +292,8 @@ def admin_login(request):
 
 
 def verify_admin_email(request, token):
+    if not settings.ADMIN_EMAIL_VERIFICATION_ENABLED:
+        return HttpResponse("Подтверждение администраторов по email временно отключено.", status=503)
     profile = get_object_or_404(AdminProfile, email_verification_token=AdminProfile.token_digest(token))
     if not profile.email_verification_sent_at:
         messages.error(request, "Ссылка подтверждения недействительна.")
