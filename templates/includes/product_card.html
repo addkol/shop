@@ -1,0 +1,30 @@
+{% load static %}
+<article class="product-card" itemscope itemtype="https://schema.org/Product">
+  <a class="product-image-link" href="{{ product.get_absolute_url }}" itemprop="url">
+    {% if product.main_image_url %}
+      <img src="{{ product.main_image_url }}" alt="{{ product.name }}" class="product-image" loading="lazy" itemprop="image">
+    {% else %}
+      <img src="{% static 'img/no-image.svg' %}" alt="Изображение товара {{ product.name }}" class="product-image" loading="lazy">
+    {% endif %}
+    {% if product.stock <= 5 %}<span class="product-badge product-badge-stock">Осталось мало</span>{% elif product.wholesale_min_quantity %}<span class="product-badge">Опт от {{ product.wholesale_min_quantity }} шт.</span>{% endif %}
+    <span class="quick-view-hint">Подробнее</span>
+  </a>
+  <div class="product-card-body">
+    <div class="product-card-meta"><span>{{ product.brand|default:product.category.name }}</span><span class="product-rating">★ 4.9</span></div>
+    <h3 class="product-title" itemprop="name"><a href="{{ product.get_absolute_url }}">{{ product.name }}</a></h3>
+    <div class="product-prices" itemprop="offers" itemscope itemtype="https://schema.org/Offer">
+      <div><small>Розница</small><strong itemprop="price" content="{{ product.price }}">{{ product.price }} сом</strong></div>
+      {% if product.wholesale_min_quantity %}<div class="wholesale-card-price"><small>от {{ product.wholesale_min_quantity }} шт.</small><strong>{{ product.wholesale_price }} сом</strong></div>{% endif %}
+      <meta itemprop="priceCurrency" content="KGS">
+      <link itemprop="availability" href="https://schema.org/InStock">
+    </div>
+    <form method="post" action="{% url 'shop:add-to-cart' product.id %}" class="product-card-actions">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{{ request.get_full_path }}">
+      <button class="btn btn-primary w-100" type="submit" {% if not product.available %}disabled{% endif %}>
+        <svg aria-hidden="true"><use href="{% static 'img/icons.svg' %}#cart"></use></svg>
+        В корзину
+      </button>
+    </form>
+  </div>
+</article>

@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 
-{% block title %}Профиль | Онлайн Магазин{% endblock %}
+{% block title %}Профиль и заказы | Элит Маркет{% endblock %}
 
 {% block content %}
-<div class="profile-layout">
+<div class="container profile-layout">
   <aside class="profile-sidebar">
     <h1 class="h2">Профиль</h1>
     <dl class="profile-list">
@@ -39,6 +39,7 @@
             <div>
               <a class="order-number" href="{{ order.get_absolute_url }}">{{ order.order_number }}</a>
               <div class="small text-muted">{{ order.created_at|date:"d.m.Y H:i" }}</div>
+              {% if order.payment_expires_at %}<div class="small text-muted">Оплатить до {{ order.payment_expires_at|date:"d.m.Y H:i" }}</div>{% endif %}
             </div>
             <strong>{{ order.total_price }} сом</strong>
           </div>

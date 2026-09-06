@@ -1,0 +1,133 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: online_shop_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d online_shop_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7.4-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      ENVIRONMENT: test
+      DEBUG: "True"
+      SECRET_KEY: ci-only-secret-key-not-used-outside-automated-tests
+      ALLOWED_HOSTS: testserver,localhost
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/online_shop_test
+      CACHE_URL: redis://127.0.0.1:6379/1
+      CELERY_BROKER_URL: redis://127.0.0.1:6379/0
+      CELERY_RESULT_BACKEND: redis://127.0.0.1:6379/0
+      CELERY_TASK_ALWAYS_EAGER: "True"
+      SMS_PROVIDER: console
+      FINIK_USE_STUB: "True"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12.14"
+          cache: pip
+      - name: Install locked dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install --require-hashes -r requirements.txt
+          pip install --require-hashes -r requirements-dev.txt
+      - name: Django and migration checks
+        run: |
+          python manage.py check
+          python manage.py makemigrations --check --dry-run
+          python manage.py migrate --noinput
+          python manage.py migrate --check
+      - name: Test suite
+        run: python manage.py test --verbosity 2
+      - name: Static and syntax checks
+        run: |
+          python manage.py collectstatic --noinput
+          python -m compileall -q accounts payment project shop
+          node --check static/js/store.js
+      - name: Security audit
+        run: |
+          pip-audit -r requirements.txt
+          bandit -q -r accounts payment project shop -ll
+      - name: Production configuration contract
+        env:
+          ENVIRONMENT: production
+          DEBUG: "False"
+          SECRET_KEY: 4f1b9715054b47c9865e6f726325820846d785336add4f28a148752767256bc0
+          ALLOWED_HOSTS: shop.example.com
+          CSRF_TRUSTED_ORIGINS: https://shop.example.com
+          SITE_URL: https://shop.example.com
+          CELERY_BROKER_URL: redis://redis.internal:6379/0
+          CELERY_RESULT_BACKEND: redis://redis.internal:6379/0
+          CELERY_TASK_ALWAYS_EAGER: "False"
+          CLIENT_IP_HEADER: HTTP_X_REAL_IP
+          USE_X_FORWARDED_PROTO: "True"
+          SECURE_SSL_REDIRECT: "True"
+          SESSION_COOKIE_SECURE: "True"
+          CSRF_COOKIE_SECURE: "True"
+          SECURE_HSTS_SECONDS: "31536000"
+          SECURE_HSTS_INCLUDE_SUBDOMAINS: "True"
+          SECURE_HSTS_PRELOAD: "True"
+          SERVE_MEDIA_FILES: "False"
+          EMAIL_BACKEND: django.core.mail.backends.smtp.EmailBackend
+          EMAIL_HOST: smtp.example.com
+          EMAIL_HOST_USER: ci-user
+          EMAIL_HOST_PASSWORD: ci-password
+          SMS_PROVIDER: twilio
+          TWILIO_ACCOUNT_SID: test
+          TWILIO_AUTH_TOKEN: test
+          TWILIO_FROM_NUMBER: test
+          FINIK_API_URL: https://api.acquiring.averspay.kg/v1/payment
+          FINIK_STATUS_API_URL: https://api.acquiring.averspay.kg/v1/payment/{payment_id}
+          FINIK_USE_STUB: "False"
+          FINIK_API_KEY: test
+          FINIK_ACCOUNT_ID: test
+          FINIK_PRIVATE_KEY: test
+          FINIK_WEBHOOK_PUBLIC_KEY: test
+          SENTRY_DSN: https://public@example.com/1
+        run: python manage.py check --deploy
+
+  docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build production image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          tags: elit-market:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

@@ -1,11 +1,11 @@
 {% extends "base.html" %}
 
-{% block title %}Подтверждение телефона | Онлайн Магазин{% endblock %}
+{% block title %}Подтверждение телефона | Элит Маркет{% endblock %}
 
 {% block content %}
 <div class="auth-panel mx-auto">
   <h1 class="h3 mb-2">Подтвердить телефон</h1>
-  <p class="text-muted">Введите 4-значный код, отправленный на {{ phone_number }}.</p>
+  <p class="text-muted">{% if fixed_otp_enabled %}Введите временный 4-значный код для {{ phone_number }}. SMS не отправляется.{% else %}Введите 4-значный код, отправленный на {{ phone_number }}.{% endif %}</p>
   <form method="post" novalidate>
     {% csrf_token %}
     {% for field in form %}

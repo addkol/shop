@@ -1,34 +1,72 @@
+databases:
+  - name: onlineshop-db
+    databaseName: online_shop
+    user: online_shop
+    region: frankfurt
+    plan: 1c-2g
+    diskSizeGB: 20
+    postgresMajorVersion: "18"
+    ipAllowList: []
+
 services:
+  - type: keyvalue
+    name: onlineshop-cache
+    region: frankfurt
+    plan: 256mb
+    ipAllowList: []
+    maxmemoryPolicy: noeviction
+    persistenceMode: journal-snapshot
+
   - type: web
     name: onlineshop
     runtime: python
-    buildCommand: pip install -r requirements.txt && python manage.py collectstatic --noinput
-    startCommand: python manage.py migrate && gunicorn project.wsgi:application --bind 0.0.0.0:$PORT
-    disk:
-      name: onlineshop-data
-      mountPath: /var/data
-      sizeGB: 1
+    region: frankfurt
+    plan: 1c-2g
+    buildCommand: pip install --require-hashes -r requirements.txt && python manage.py collectstatic --noinput
+    preDeployCommand: python manage.py check --deploy && python manage.py migrate --noinput
+    startCommand: python manage.py check --deploy --database default && gunicorn -c gunicorn.conf.py project.wsgi:application
+    healthCheckPath: /health/
+    maxShutdownDelaySeconds: 60
     envVars:
       - key: PYTHON_VERSION
-        value: 3.12.4
-      - key: SECRET_KEY
-        generateValue: true
+        value: 3.12.14
+      - key: ENVIRONMENT
+        value: production
       - key: DEBUG
         value: "False"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: onlineshop-db
+          property: connectionString
+      - key: CACHE_URL
+        fromService:
+          type: keyvalue
+          name: onlineshop-cache
+          property: connectionString
+      - key: CELERY_BROKER_URL
+        fromService:
+          type: keyvalue
+          name: onlineshop-cache
+          property: connectionString
+      - key: CELERY_RESULT_BACKEND
+        fromService:
+          type: keyvalue
+          name: onlineshop-cache
+          property: connectionString
+      - key: CELERY_TASK_ALWAYS_EAGER
+        value: "False"
       - key: ALLOWED_HOSTS
-        value: .onrender.com
+        sync: false
       - key: CSRF_TRUSTED_ORIGINS
-        value: https://*.onrender.com
-      - key: DB_ENGINE
-        value: django.db.backends.sqlite3
-      - key: SQLITE_NAME
-        value: /var/data/db.sqlite3
-      - key: MEDIA_ROOT
-        value: /var/data/media
-      - key: SERVE_MEDIA_FILES
-        value: "True"
+        sync: false
       - key: SITE_URL
-        value: https://onlineshop.onrender.com
+        sync: false
+      - key: CLIENT_IP_HEADER
+        value: HTTP_X_FORWARDED_FOR
+      - key: CLIENT_IP_TRUSTED_HOPS
+        value: "1"
       - key: USE_X_FORWARDED_PROTO
         value: "True"
       - key: SECURE_SSL_REDIRECT
@@ -43,9 +81,234 @@ services:
         value: "True"
       - key: SECURE_HSTS_PRELOAD
         value: "True"
-      - key: CELERY_TASK_ALWAYS_EAGER
+      - key: SERVE_MEDIA_FILES
+        value: "False"
+      - key: USE_S3
+        value: "True"
+      - key: S3_ACCESS_KEY_ID
+        sync: false
+      - key: S3_SECRET_ACCESS_KEY
+        sync: false
+      - key: S3_BUCKET_NAME
+        sync: false
+      - key: S3_ENDPOINT_URL
+        sync: false
+      - key: S3_REGION_NAME
+        sync: false
+      - key: S3_CUSTOM_DOMAIN
+        sync: false
+      - key: S3_QUERYSTRING_AUTH
+        value: "False"
+      - key: EMAIL_BACKEND
+        value: django.core.mail.backends.smtp.EmailBackend
+      - key: DEFAULT_FROM_EMAIL
+        sync: false
+      - key: EMAIL_HOST
+        sync: false
+      - key: EMAIL_PORT
+        value: "587"
+      - key: EMAIL_HOST_USER
+        sync: false
+      - key: EMAIL_HOST_PASSWORD
+        sync: false
+      - key: EMAIL_USE_TLS
         value: "True"
       - key: SMS_PROVIDER
-        value: console
+        value: twilio
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: TWILIO_FROM_NUMBER
+        sync: false
+      - key: FINIK_API_URL
+        value: https://api.acquiring.averspay.kg/v1/payment
+      - key: FINIK_STATUS_API_URL
+        sync: false
       - key: FINIK_USE_STUB
-        value: "True"
+        value: "False"
+      - key: FINIK_API_KEY
+        sync: false
+      - key: FINIK_ACCOUNT_ID
+        sync: false
+      - key: FINIK_DISPLAY_NAME
+        value: Elit Market
+      - key: FINIK_PRIVATE_KEY
+        sync: false
+      - key: FINIK_WEBHOOK_PUBLIC_KEY
+        sync: false
+      - key: FINIK_PAYMENT_URL_ALLOWED_HOSTS
+        value: qr.finik,qr.finik.kg
+      - key: FINIK_RECONCILIATION_INTERVAL_SECONDS
+        value: "60"
+      - key: FINIK_RECONCILIATION_BATCH_SIZE
+        value: "100"
+      - key: FINIK_RECONCILIATION_MIN_AGE_SECONDS
+        value: "30"
+      - key: FINIK_RECONCILIATION_LOOKBACK_HOURS
+        value: "72"
+      - key: SENTRY_DSN
+        sync: false
+      - key: SENTRY_ENVIRONMENT
+        value: production
+
+  - type: worker
+    name: onlineshop-worker
+    runtime: python
+    region: frankfurt
+    plan: 1c-2g
+    buildCommand: pip install --require-hashes -r requirements.txt
+    startCommand: celery -A project worker --loglevel=INFO --concurrency=2
+    maxShutdownDelaySeconds: 60
+    envVars: &workerEnv
+      - key: PYTHON_VERSION
+        value: 3.12.14
+      - key: ENVIRONMENT
+        value: production
+      - key: DEBUG
+        value: "False"
+      - key: SECRET_KEY
+        fromService:
+          type: web
+          name: onlineshop
+          envVarKey: SECRET_KEY
+      - key: DATABASE_URL
+        fromDatabase:
+          name: onlineshop-db
+          property: connectionString
+      - key: CACHE_URL
+        fromService:
+          type: keyvalue
+          name: onlineshop-cache
+          property: connectionString
+      - key: CELERY_BROKER_URL
+        fromService:
+          type: keyvalue
+          name: onlineshop-cache
+          property: connectionString
+      - key: CELERY_RESULT_BACKEND
+        fromService:
+          type: keyvalue
+          name: onlineshop-cache
+          property: connectionString
+      - key: CELERY_TASK_ALWAYS_EAGER
+        value: "False"
+      - key: SMS_PROVIDER
+        fromService:
+          type: web
+          name: onlineshop
+          envVarKey: SMS_PROVIDER
+      - key: TWILIO_ACCOUNT_SID
+        fromService:
+          type: web
+          name: onlineshop
+          envVarKey: TWILIO_ACCOUNT_SID
+      - key: TWILIO_AUTH_TOKEN
+        fromService:
+          type: web
+          name: onlineshop
+          envVarKey: TWILIO_AUTH_TOKEN
+      - key: TWILIO_FROM_NUMBER
+        fromService:
+          type: web
+          name: onlineshop
+          envVarKey: TWILIO_FROM_NUMBER
+      - key: EMAIL_BACKEND
+        fromService:
+          type: web
+          name: onlineshop
+          envVarKey: EMAIL_BACKEND
+      - key: DEFAULT_FROM_EMAIL
+        fromService:
+          type: web
+          name: onlineshop
+          envVarKey: DEFAULT_FROM_EMAIL
+      - key: EMAIL_HOST
+        fromService:
+          type: web
+          name: onlineshop
+          envVarKey: EMAIL_HOST
+      - key: EMAIL_PORT
+        fromService:
+          type: web
+          name: onlineshop
+          envVarKey: EMAIL_PORT
+      - key: EMAIL_HOST_USER
+        fromService:
+          type: web
+          name: onlineshop
+          envVarKey: EMAIL_HOST_USER
+      - key: EMAIL_HOST_PASSWORD
+        fromService:
+          type: web
+          name: onlineshop
+          envVarKey: EMAIL_HOST_PASSWORD
+      - key: EMAIL_USE_TLS
+        fromService:
+          type: web
+          name: onlineshop
+          envVarKey: EMAIL_USE_TLS
+      - key: FINIK_USE_STUB
+        fromService:
+          type: web
+          name: onlineshop
+          envVarKey: FINIK_USE_STUB
+      - key: FINIK_API_URL
+        fromService:
+          type: web
+          name: onlineshop
+          envVarKey: FINIK_API_URL
+      - key: FINIK_STATUS_API_URL
+        fromService:
+          type: web
+          name: onlineshop
+          envVarKey: FINIK_STATUS_API_URL
+      - key: FINIK_API_KEY
+        fromService:
+          type: web
+          name: onlineshop
+          envVarKey: FINIK_API_KEY
+      - key: FINIK_PRIVATE_KEY
+        fromService:
+          type: web
+          name: onlineshop
+          envVarKey: FINIK_PRIVATE_KEY
+      - key: FINIK_RECONCILIATION_INTERVAL_SECONDS
+        fromService:
+          type: web
+          name: onlineshop
+          envVarKey: FINIK_RECONCILIATION_INTERVAL_SECONDS
+      - key: FINIK_RECONCILIATION_BATCH_SIZE
+        fromService:
+          type: web
+          name: onlineshop
+          envVarKey: FINIK_RECONCILIATION_BATCH_SIZE
+      - key: FINIK_RECONCILIATION_MIN_AGE_SECONDS
+        fromService:
+          type: web
+          name: onlineshop
+          envVarKey: FINIK_RECONCILIATION_MIN_AGE_SECONDS
+      - key: FINIK_RECONCILIATION_LOOKBACK_HOURS
+        fromService:
+          type: web
+          name: onlineshop
+          envVarKey: FINIK_RECONCILIATION_LOOKBACK_HOURS
+      - key: PAYMENT_EVENT_PAYLOAD_RETENTION_DAYS
+        value: "365"
+      - key: SENTRY_DSN
+        fromService:
+          type: web
+          name: onlineshop
+          envVarKey: SENTRY_DSN
+      - key: SENTRY_ENVIRONMENT
+        value: production
+
+  - type: worker
+    name: onlineshop-beat
+    runtime: python
+    region: frankfurt
+    plan: 0.5c-512mb
+    buildCommand: pip install --require-hashes -r requirements.txt
+    startCommand: celery -A project beat --loglevel=INFO --schedule=/tmp/celerybeat-schedule
+    maxShutdownDelaySeconds: 60
+    envVars: *workerEnv

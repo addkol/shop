@@ -1,0 +1,5 @@
+-c requirements.txt
+
+bandit>=1.8.6,<2
+pip-audit>=2.9,<3
+selenium>=4.35,<5

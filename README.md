@@ -1,352 +1,187 @@
-# Онлайн Магазин
+# Элит Маркет
 
-Django 5 интернет-магазин с авторизацией по номеру телефона для клиентов, подтверждением email для администраторов, корзиной в сессии и БД, оформлением заказа, интеграцией с платежной системой Finik, генерацией QR-кодов, webhook'ами, настройкой Celery и Bootstrap шаблонами.
+Полноценный интернет-магазин на Django 5.2: каталог, адаптивные карточки и галерея товаров, несколько фотографий и видео, диапазоны оптовых цен, корзина, оформление и резервирование товара, личный кабинет, история заказов, отмена с причиной, отзывы после покупки, администрирование и интеграция оплаты Finik.
 
-**Интерфейс полностью переведен на русский язык** 🇷🇺
+## Стек
 
-## Технологический стек
+- Python 3.12, Django 5.2, Django ORM
+- SQLite для локальной разработки; PostgreSQL через `DATABASE_URL` для production
+- Vanilla HTML/CSS/JavaScript без внешних CDN
+- Celery и Redis для фоновых задач и освобождения просроченного резерва
+- Pillow и Django storage API для изображений; локальное или S3-совместимое media-хранилище
+- Finik QR с RSA-SHA256 подписью запросов и webhook
+- Gunicorn и WhiteNoise для production-запуска и статических файлов
+- Sentry подключается опционально через переменную окружения
 
-- Django 5, Django REST Framework, готовые настройки для PostgreSQL
-- Кастомная модель пользователя с клиентами по телефону и администраторами по email
-- Celery + Redis для фоновых задач отправки SMS и email
-- Интеграция с платежной системой Finik (режим заглушки для разработки)
-- Bootstrap 5 шаблоны и HTMX
+## Архитектура
 
-## Полная инструкция по запуску
+- `accounts` — пользователь, клиентский OTP-вход, администраторы, профили и ограничения попыток.
+- `shop` — каталог, цены, корзина, адреса, заказы, позиции заказа, отзывы и жизненный цикл резерва.
+- `payment` — создание Finik-платежа, тестовая оплата, проверка подписи webhook и журнал событий.
+- `project` — настройки, маршруты, Celery, health-check, раздача локальных media и security headers.
+- `templates`, `static`, `media` — русский адаптивный интерфейс и загруженные файлы.
 
-### Шаг 1: Создание и активация виртуального окружения
+## База данных
+
+Основные связи:
+
+- `User` → один `ClientProfile` или `AdminProfile`.
+- `Category` → много `Product`.
+- `Product` → много `ProductImage` и `WholesalePrice`.
+- `User` → одна `Cart`; `Cart` → много `CartItem`.
+- `User` → много `Address` и `Order`.
+- `Order` → много `OrderItem` и `PaymentEvent`.
+- `OrderItem` → не более одного `Review`; отзыв разрешён только после статуса заказа «Доставлен».
+
+Цена каждой позиции повторно вычисляется внутри транзакции с блокировкой товара. Остаток уменьшается при создании заказа и возвращается один раз при отмене или истечении срока оплаты. Цена и название сохраняются в `OrderItem`, поэтому история заказа не меняется после редактирования товара.
+
+## Локальный запуск
 
 ```powershell
 python -m venv .venv
-.venv\Scripts\activate
-```
-
-**Windows (PowerShell):**
-```powershell
 .venv\Scripts\Activate.ps1
-```
-
-**Windows (CMD):**
-```cmd
-.venv\Scripts\activate.bat
-```
-
-**Mac/Linux:**
-```bash
-source .venv/bin/activate
-```
-
-### Шаг 2: Установка зависимостей
-
-```powershell
-pip install -r requirements.txt
-```
-
-Это установит:
-- Django 5 и DRF
-- PostgreSQL драйвер (psycopg2)
-- Celery + Redis
-- Twilio для SMS
-- QRCode для генерации QR-кодов
-- Bootstrap и HTMX
-
-### Шаг 3: Создание файла окружения
-
-```powershell
-copy .env.example .env
-```
-
-Отредактируйте `.env` файл при необходимости. Основные переменные:
-
-```env
-DEBUG=True
-SECRET_KEY=your-secret-key-here
-LANGUAGE_CODE=ru
-TIME_ZONE=Asia/Bishkek
-
-# Для SMS (Twilio)
-SMS_PROVIDER=console
-TWILIO_ACCOUNT_SID=your-sid
-TWILIO_AUTH_TOKEN=your-token
-TWILIO_FROM_NUMBER=+1234567890
-
-# Для платежей (Finik)
-FINIK_USE_STUB=True
-FINIK_API_KEY=your-api-key
-```
-
-### Шаг 4: Запуск миграций
-
-```powershell
-python manage.py makemigrations
+pip install --require-hashes -r requirements.txt
+Copy-Item .env.example .env
 python manage.py migrate
-```
-
-### Шаг 5: Загрузка тестовых данных
-
-```powershell
 python manage.py loaddata shop/fixtures/sample_catalog.json
+python manage.py runserver 0.0.0.0:8000
 ```
 
-Это добавит пример товаров и категорий для тестирования.
+Адреса:
 
-### Шаг 6: Создание администратора (опционально)
+- магазин: `http://127.0.0.1:8000/`
+- админка: `http://127.0.0.1:8000/admin/`
+- проверка сервиса: `http://127.0.0.1:8000/health/`
+- liveness probe: `http://127.0.0.1:8000/health/live/`
+- доступ из локальной сети: `http://IP-КОМПЬЮТЕРА:8000/`
+
+Для доступа по локальной сети добавьте IP компьютера в `ALLOWED_HOSTS` и разрешите входящие подключения к порту 8000 в брандмауэре.
+
+## Пользователи и пароли
+
+В репозитории нет общего или скрытого пароля.
+
+### Администратор
 
 ```powershell
 python manage.py createsuperuser
 ```
 
-Следуйте подсказкам для создания учетной записи администратора.
+Команда запросит email и пароль. Пароль хранится только в виде стойкого Django-хеша. Публичная регистрация администратора закрыта; нового администратора может создать только суперпользователь.
 
-### Шаг 7: Запуск development сервера
-
-```powershell
-python manage.py runserver
-```
-
-**Сервер откроется по адресу:** `http://127.0.0.1:8000/`
-
----
-
-## Доступные адреса
-
-- **Главная страница:** `http://127.0.0.1:8000/` - Каталог товаров
-- **Корзина:** `http://127.0.0.1:8000/cart/` - Ваша корзина
-- **Профиль:** `http://127.0.0.1:8000/accounts/profile/` - Личный кабинет (требует авторизации)
-- **Вход клиента:** `http://127.0.0.1:8000/accounts/login/` - Авторизация по телефону
-- **Регистрация:** `http://127.0.0.1:8000/accounts/register/` - Новый аккаунт
-- **Админ-панель:** `http://127.0.0.1:8000/admin/` - Управление (требует superuser)
-
----
-
-## Celery и фоновые задачи
-
-По умолчанию все задачи выполняются синхронно благодаря `CELERY_TASK_ALWAYS_EAGER=True`. Это удобно для разработки.
-
-### Для использования асинхронных задач в разработке:
-
-1. **Установите и запустите Redis:**
+### Тестовый клиент
 
 ```powershell
-# Windows - через WSL или Docker
-wsl redis-server
-
-# Или используйте Docker:
-docker run -d -p 6379:6379 redis:latest
+python manage.py shell -c "from accounts.models import User; User.objects.get_or_create(phone_number='+996700111222', defaults={'is_client': True, 'is_active': True})"
 ```
 
-2. **Отключите синхронный режим в `.env`:**
+При `SMS_PROVIDER=console` откройте страницу входа, введите `+996700111222` и возьмите одноразовый код из терминала сервера. OTP хранится в базе только как хеш, действует ограниченное время и имеет лимиты повторной отправки и попыток.
 
-```env
-CELERY_TASK_ALWAYS_EAGER=False
-```
+## Админская часть
 
-3. **Запустите Celery worker (в отдельном терминале):**
+Через `/admin/` доступны:
+
+- категории, товары, остатки, основное и дополнительные изображения, видео;
+- диапазоны оптовых цен;
+- заказы, позиции, адреса, статусы оплаты и причины отмены;
+- модерация отзывов;
+- пользователи и профили;
+- журнал входящих платежных событий.
+
+Для товара загрузите основное фото в inline-блоке «Изображения товара». Поле `Product.image` сохранено для совместимости со старыми данными. На витрине приоритет имеет изображение с отметкой «Основное», затем остальные по полю «Порядок».
+
+## Фотографии и видео
+
+- Локально файлы хранятся в `media/products/` и `media/products/gallery/`.
+- На `DEBUG=True` их обслуживает Django.
+- `SERVE_MEDIA_FILES=True` допустим только для локальной разработки; в production media отдаёт Nginx или S3.
+- Для масштабируемого production включите `USE_S3=True` и заполните S3-переменные из `.env.example`.
+- Поддерживаются JPG, PNG, WebP до 10 МБ; видео MP4, WebM, MOV до 100 МБ.
+
+`MEDIA_ROOT` — физическая папка, `MEDIA_URL` — публичный URL. Если запись в БД есть, а файла в storage нет, интерфейс показывает заглушку, а не сломанную картинку.
+
+## Оптовые цены
+
+Для каждого товара диапазоны задаются через `WholesalePrice`: количество, после которого включается опт, и цена за штуку. Значение `9` означает розничную цену до 9 включительно и оптовую цену с 10 штук. Калькулятор обновляет цену и сумму без перезагрузки, а сервер повторно проверяет диапазон при оформлении заказа.
+
+## Заказы
+
+После оформления заказ получает уникальный номер, срок оплаты и статус «Ожидает». Неоплаченные заказы видны в профиле и могут быть отменены с обязательной причиной. Команда обслуживания:
 
 ```powershell
-celery -A project worker -l info
+python manage.py cancel_expired_orders
 ```
 
----
+В production эту же операцию выполняет Celery Beat по расписанию `ORDER_EXPIRY_CHECK_SECONDS`.
 
-## Платежи и Finik
+## Finik
 
-### Режим разработки (Stub Mode)
+Локально безопасно используется `FINIK_USE_STUB=True`. Тестовая страница платежа доступна только владельцу заказа.
 
-По умолчанию используется режим заглушки `FINIK_USE_STUB=True`. При оформлении заказа:
-- Создается фальшивый платежный ID
-- Генерируется QR-код
-- Нет необходимости в реальном подключении к Finik
-
-### Для боевого режима (Production):
-
-В `.env` установите:
+Для боевого режима нужны выданные Finik значения:
 
 ```env
 FINIK_USE_STUB=False
-FINIK_API_URL=https://api.finik.kg/v1/payments
-FINIK_API_KEY=your-api-key
-FINIK_SECRET=your-secret
+FINIK_API_URL=https://api.acquiring.averspay.kg/v1/payment
+FINIK_API_KEY=...
+FINIK_ACCOUNT_ID=...
+FINIK_DISPLAY_NAME=Elit Market
+FINIK_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----"
+FINIK_WEBHOOK_PUBLIC_KEY="-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----"
 ```
 
-И раскройте webhook:
+Webhook: `POST /webhook/finik/`. Обработчик проверяет timestamp, RSA-подпись и сумму, блокирует заказ транзакцией и обеспечивает идемпотентность через уникальный `provider_event_id`.
 
-```
-POST /webhook/finik/
-```
+## Celery
 
-Webhook принимает: `payment_id` и `status` (success/failed)
+Для локальной разработки задачи выполняются сразу (`CELERY_TASK_ALWAYS_EAGER=True`). Для production:
 
----
-
-## Структура проекта
-
-```
-OnlineShop/
-├── project/              # Основные настройки Django
-│   ├── settings.py       # Конфигурация (LANGUAGE_CODE=ru)
-│   ├── urls.py
-│   ├── celery.py         # Настройка Celery
-│   └── wsgi.py
-│
-├── shop/                 # Приложение магазина
-│   ├── models.py         # Модели (Товар, Категория, Заказ, Корзина)
-│   ├── views.py          # Представления
-│   ├── forms.py          # Формы оформления
-│   ├── admin.py          # Админ-панель
-│   └── fixtures/
-│       └── sample_catalog.json  # Тестовые данные
-│
-├── accounts/             # Приложение учетных записей
-│   ├── models.py         # Кастомная модель User
-│   ├── forms.py          # Формы регистрации/входа
-│   ├── auth_backends.py  # Кастомная аутентификация
-│   └── tasks.py          # Celery задачи (SMS)
-│
-├── payment/              # Приложение платежей
-│   ├── views.py          # Webhook обработчик
-│   └── services.py       # Интеграция Finik
-│
-├── templates/            # HTML шаблоны (все на русском)
-│   ├── base.html         # Основной шаблон
-│   ├── index.html        # Каталог
-│   ├── cart.html         # Корзина
-│   ├── checkout.html     # Оформление
-│   ├── profile.html      # Профиль
-│   ├── order_success.html # Успешный заказ
-│   └── accounts/
-│       ├── login.html
-│       ├── register.html
-│       └── verify.html
-│
-├── static/               # CSS, JS, изображения
-└── media/                # Загруженные файлы (товары)
+```env
+CELERY_TASK_ALWAYS_EAGER=False
+CELERY_BROKER_URL=redis://...
+CELERY_RESULT_BACKEND=redis://...
+CACHE_URL=redis://...
 ```
 
----
+Процессы:
 
-## Функции по ролям
-
-### Для клиентов
-
-✅ Регистрация по номеру телефона +996  
-✅ Верификация SMS кодом  
-✅ Просмотр каталога товаров с фильтром по категориям  
-✅ Добавление товаров в корзину  
-✅ Оформление заказа с адресом доставки  
-✅ Выбор способа оплаты (QR код, карта, ссылка)  
-✅ История заказов в профиле  
-✅ Сохранение адресов доставки  
-
-### Для администраторов
-
-✅ Добавление и редактирование товаров  
-✅ Управление категориями  
-✅ Просмотр и изменение статуса заказов  
-✅ Отслеживание платежей  
-✅ Управление пользователями  
-
----
-
-## Переменные окружения (.env)
-
-| Переменная | По умолчанию | Описание |
-|-----------|--------|---------|
-| `DEBUG` | True | Режим отладки |
-| `SECRET_KEY` | change-me-in-production | Секретный ключ Django |
-| `LANGUAGE_CODE` | ru | Язык интерфейса (русский) |
-| `TIME_ZONE` | Asia/Bishkek | Временная зона |
-| `DB_ENGINE` | sqlite3 | Тип БД (sqlite3 или postgres) |
-| `SMS_PROVIDER` | console | Провайдер SMS (console, twilio) |
-| `CELERY_TASK_ALWAYS_EAGER` | True | Синхронное выполнение задач |
-| `FINIK_USE_STUB` | True | Режим тестирования платежей |
-
----
-
-## Типичные команды
-
-```powershell
-# Активация окружения
-.venv\Scripts\activate
-
-# Миграции
-python manage.py makemigrations
-python manage.py migrate
-
-# Создание суперпользователя
-python manage.py createsuperuser
-
-# Загрузка тестовых данных
-python manage.py loaddata shop/fixtures/sample_catalog.json
-
-# Запуск сервера
-python manage.py runserver
-
-# Запуск Celery worker
+```bash
 celery -A project worker -l info
-
-# Очистка кэша
-python manage.py clearcache
-
-# Сброс БД (осторожно!)
-python manage.py flush
+celery -A project beat -l info
 ```
 
----
+## Проверка качества
 
-## Возможные проблемы и решения
-
-### ❌ "Модуль 'redis' не найден"
-**Решение:** `pip install redis`
-
-### ❌ "No module named 'psycopg2'"
-**Решение:** `pip install psycopg2-binary`
-
-### ❌ Ошибка миграций
-**Решение:**
 ```powershell
-python manage.py makemigrations --empty accounts --name fix_models
-python manage.py migrate
+python manage.py check
+python manage.py makemigrations --check --dry-run
+python manage.py test
+python manage.py collectstatic --noinput
+python manage.py check --deploy
 ```
 
-### ❌ SMS не отправляются в режиме разработки
-**Это нормально!** В режиме `SMS_PROVIDER=console` SMS печатаются в консоль. Используйте код из консоли для верификации.
+`check --deploy` нужно запускать с теми же production-переменными, которые будут установлены на сервере.
 
-### ❌ Порт 8000 занят
-**Решение:** `python manage.py runserver 8001`
+## Production checklist
 
----
+Перед приёмом реальных заказов обязательно:
 
-## Требования
+1. Установить `DEBUG=False` и случайный `SECRET_KEY`.
+2. Указать точные `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS` и `SITE_URL`.
+3. Подключить PostgreSQL и настроить резервное копирование.
+4. Подключить S3-совместимое media-хранилище либо persistent disk для одного экземпляра.
+5. Подключить Redis, Celery worker и Celery Beat.
+6. Настроить реальный SMS-провайдер и SMTP; не использовать console backend.
+7. Внести реальные ключи Finik и зарегистрировать HTTPS webhook.
+8. Настроить Sentry, мониторинг `/health/`, домен и TLS.
+9. Выполнить миграции, `collectstatic`, тестовую покупку, отмену и возврат склада.
+10. Создать суперпользователя и заменить демонстрационные контакты магазина.
 
-- Python 3.10+
-- Django 5.0+
-- PostgreSQL (или SQLite для разработки)
-- Redis (опционально, для Celery)
+Код поддерживает все перечисленные production-компоненты, но сторонние аккаунты, домен, SMS/SMTP, Finik, PostgreSQL, Redis и S3 должны быть предоставлены владельцем проекта.
 
----
+## Документация эксплуатации
 
-## Деплой
-
-### На Heroku:
-```powershell
-heroku create your-app-name
-heroku config:set DEBUG=False
-git push heroku main
-```
-
-### На PythonAnywhere:
-1. Загрузите код на сервер
-2. Создайте виртуальное окружение
-3. Установите требования
-4. Настройте WSGI
-5. Перезагрузите приложение
-
----
-
-## Поддержка
-
-По вопросам и ошибкам создавайте Issues в репозитории.
-
-**Язык интерфейса:** Русский 🇷🇺  
-**Последнее обновление:** 2026-07-08
+- `DEPLOY.md` — второй проект на Hetzner, Nginx, TLS, запуск и откат.
+- `DEPLOY_RENDER.md` — полноценный Render Blueprint и временный адрес без домена.
+- `OPERATIONS.md` — backup/restore, мониторинг и действия при инцидентах.
+- `SECURITY.md` — границы доверия, secrets и порядок сообщения об уязвимости.

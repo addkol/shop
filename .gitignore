@@ -1,4 +1,7 @@
 .env
+.env.*
+!.env.example
+!.env.production.example
 .venv/
 venv/
 __pycache__/
@@ -8,3 +11,7 @@ media/
 staticfiles/
 .pytest_cache/
 .coverage
+.backups/
+backups/
+data/
+celerybeat-schedule*

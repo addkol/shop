@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block title %}Тестовая оплата | Элит Маркет{% endblock %}
+
+{% block content %}
+<section class="section container">
+  <div class="auth-panel mx-auto">
+    <span class="eyebrow">Тестовый режим</span>
+    <h1 class="h3">Оплата заказа {{ order.order_number }}</h1>
+    <p>Это безопасная локальная страница имитации Finik. Реальные деньги не списываются.</p>
+    <div class="summary-line"><span>К оплате</span><strong>{{ order.total_price }} сом</strong></div>
+    {% if order.can_be_paid %}
+      <form method="post">
+        {% csrf_token %}
+        <button class="btn btn-primary btn-xl w-100" type="submit">Подтвердить тестовую оплату</button>
+      </form>
+    {% else %}
+      <div class="alert alert-info">Этот заказ уже обработан.</div>
+      <a class="btn btn-outline-primary w-100" href="{{ order.get_absolute_url }}">Вернуться к заказу</a>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

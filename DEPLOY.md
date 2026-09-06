@@ -1,497 +1,182 @@
-# 🌍 Гайд по деплою - Онлайн Магазин
+# Production-деплой на Hetzner
 
-Полная инструкция для развертывания проекта на боевом сервере.
+Рабочая админка находится в /dashboard/. После первой миграции создайте группы командой
+setup_dashboard_roles и назначьте сотрудникам is_staff и нужную группу.
+Полная инструкция, точные права и временный FIXED_OTP_CODE описаны в [DASHBOARD.md](DASHBOARD.md).
+Общий OTP разрешён в production только как явное SMS-исключение с предупреждением;
+он не отменяет обязательные Finik/SMTP/HTTPS/DB/Redis проверки.
 
-## Выбор сервера
+Проект запускается как отдельный Docker Compose project `elit-market`. Он использует собственные PostgreSQL/Redis volumes и публикует только Django на `127.0.0.1:8010`. PostgreSQL `5432` и Redis `6379` на host не публикуются, поэтому существующий PostgreSQL другого проекта не конфликтует с OnlineShop.
 
-### Рекомендуемые варианты
+## Адрес и DNS
 
-| Провайдер | Цена | Простота | Возможности |
-|-----------|------|----------|------------|
-| **Render.com** | Бесплатно - $7/мес | ⭐⭐⭐⭐⭐ | PostgreSQL, Redis, Python |
-| **Railway.app** | $5/мес | ⭐⭐⭐⭐⭐ | Отличная интеграция с Git |
-| **Heroku** | Платно ($7+) | ⭐⭐⭐⭐ | Стабильный, много документации |
-| **DigitalOcean** | $4/мес | ⭐⭐⭐ | Полный контроль, VPS |
-| **AWS** | Зависит | ⭐⭐ | Сложно, но мощно |
-| **PythonAnywhere** | $5/мес | ⭐⭐⭐⭐ | Просто, для Python |
+Используйте отдельный домен или поддомен, например `shop.example.com`, с A/AAAA-записью на Hetzner. Без домена нельзя безопасно включить production cookies, Finik webhook и обычный Let's Encrypt TLS. Шаблоны Nginx содержат placeholders и не должны копироваться напрямую без рендера.
 
-**Рекомендация:** Начните с **Render.com** или **Railway.app** - они бесплатные для тестирования.
+## Требования
 
----
+- Ubuntu 24.04 LTS или другая поддерживаемая Ubuntu.
+- Docker Engine и Docker Compose plugin.
+- Host Nginx, Certbot и пакет `acl`.
+- Открытые внешние порты только `22`, `80`, `443`.
+- Свободный loopback-порт `8010` или другой `APP_PORT`.
 
-## 📋 Подготовка кода
-
-### 1. Обновите requirements.txt
-
-Убедитесь, что туда добавлены необходимые пакеты для production:
-
-```
-gunicorn==23.0.0
-whitenoise==6.12.0
-psycopg2-binary==2.9.12
-dj-database-url==2.1.0
-```
-
-Запустите:
-```powershell
-pip freeze > requirements.txt
-```
-
-### 2. Создайте Procfile (для Heroku/Render/Railway)
-
-**Procfile** (без расширения):
-```
-web: gunicorn project.wsgi
-release: python manage.py migrate
-```
-
-### 3. Создайте runtime.txt (версия Python)
-
-```
-python-3.11.7
-```
-
-### 4. Создайте .gitignore
-
-```
-.venv/
-*.pyc
-__pycache__/
-.env
-db.sqlite3
-*.log
-/media/
-/static/
-.DS_Store
-```
-
-### 5. Обновите settings.py
-
-```python
-# production/settings.py
-
-DEBUG = config('DEBUG', default=False, cast=bool)
-
-ALLOWED_HOSTS = [
-    'yourdomain.com',
-    'www.yourdomain.com',
-    'your-app.render.com',  # Render
-    # 'your-app.up.railway.app',  # Railway
-]
-
-# PostgreSQL для production
-if config('USE_POSTGRES', default=False, cast=bool):
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'NAME': config('DB_NAME'),
-            'USER': config('DB_USER'),
-            'PASSWORD': config('DB_PASSWORD'),
-            'HOST': config('DB_HOST'),
-            'PORT': config('DB_PORT', default='5432'),
-        }
-    }
-
-# Security
-SECURE_SSL_REDIRECT = not DEBUG
-SESSION_COOKIE_SECURE = not DEBUG
-CSRF_COOKIE_SECURE = not DEBUG
-SECURE_BROWSER_XSS_FILTER = True
-SECURE_CONTENT_SECURITY_POLICY = {
-    'default-src': ("'self'",),
-    'style-src': ("'self'", "'unsafe-inline'"),
-    'script-src': ("'self'",),
-}
-
-# Static files
-STATIC_URL = '/static/'
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
-WHITENOISE_AUTOREFRESH = True
-
-# Media files
-MEDIA_URL = '/media/'
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
-```
-
----
-
-## 🚀 Деплой на Render.com
-
-### Шаг 1: Подготовка GitHub
-
-```powershell
-git init
-git add .
-git commit -m "Initial commit"
-git remote add origin https://github.com/yourusername/OnlineShop.git
-git push -u origin main
-```
-
-### Шаг 2: Создание на Render
-
-1. Зайдите на [render.com](https://render.com)
-2. Нажмите "New" → "Web Service"
-3. Выберите GitHub репозиторий
-4. Заполните поля:
-
-```
-Name: onlineshop
-Environment: Python
-Build Command: pip install -r requirements.txt
-Start Command: gunicorn project.wsgi
-```
-
-### Шаг 3: Environment Variables
-
-Добавьте переменные окружения:
-
-```
-DEBUG=False
-SECRET_KEY=<generate-new-secret>
-ALLOWED_HOSTS=yourdomain.com,www.yourdomain.com
-LANGUAGE_CODE=ru
-TIME_ZONE=Asia/Bishkek
-
-DB_ENGINE=postgresql
-DB_NAME=onlineshop
-DB_USER=postgres
-DB_PASSWORD=<strong-password>
-DB_HOST=<your-postgres-host>
-DB_PORT=5432
-
-USE_POSTGRES=True
-
-SMS_PROVIDER=twilio
-TWILIO_ACCOUNT_SID=<your-sid>
-TWILIO_AUTH_TOKEN=<your-token>
-TWILIO_FROM_NUMBER=+<your-number>
-
-FINIK_USE_STUB=False
-FINIK_API_KEY=<your-api-key>
-FINIK_API_URL=https://api.finik.kg/v1/payments
-
-CELERY_BROKER_URL=redis://...
-CELERY_RESULT_BACKEND=redis://...
-```
-
-### Шаг 4: PostgreSQL
-
-1. Создайте PostgreSQL базу на Render
-2. Скопируйте connection string
-3. Используйте его для `DB_*` переменных
-
-### Шаг 5: Миграции
-
-После первого развертывания запустите в консоли сервера:
-
-```powershell
-render exec -n onlineshop "python manage.py migrate"
-render exec -n onlineshop "python manage.py createsuperuser"
-render exec -n onlineshop "python manage.py loaddata shop/fixtures/sample_catalog.json"
-```
-
----
-
-## 🚂 Деплой на Railway.app
-
-### Шаг 1: Подготовка
-
-```powershell
-npm install -g @railway/cli
-railway login
-railway init
-```
-
-### Шаг 2: Конфигурация
-
-**railway.json:**
-```json
-{
-  "build": {
-    "builder": "heroku.buildpacks"
-  },
-  "deploy": {
-    "startCommand": "gunicorn project.wsgi",
-    "restartPolicyMaxRetries": 5
-  }
-}
-```
-
-### Шаг 3: Переменные
-
-```powershell
-railway variables set DEBUG=False
-railway variables set SECRET_KEY=<generate-new>
-railway variables set DATABASE_URL=postgresql://...
-```
-
-### Шаг 4: Деплой
-
-```powershell
-git add .
-git commit -m "Ready for deployment"
-railway up
-```
-
----
-
-## 🐳 Деплой в Docker
-
-### Dockerfile
-
-```dockerfile
-FROM python:3.11-slim
-
-WORKDIR /app
-
-# Установка зависимостей ОС
-RUN apt-get update && apt-get install -y \
-    gcc \
-    postgresql-client \
-    && rm -rf /var/lib/apt/lists/*
-
-# Установка Python зависимостей
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Копирование кода
-COPY . .
-
-# Создание пользователя
-RUN useradd -m -u 1000 django && chown -R django:django /app
-USER django
-
-# Команды запуска
-RUN python manage.py collectstatic --noinput
-
-EXPOSE 8000
-
-CMD ["gunicorn", "project.wsgi", "--bind", "0.0.0.0:8000"]
-```
-
-### docker-compose.yml
-
-```yaml
-version: '3.8'
-
-services:
-  web:
-    build: .
-    ports:
-      - "8000:8000"
-    environment:
-      DEBUG: "False"
-      DB_ENGINE: postgresql
-      DB_HOST: db
-      DB_NAME: onlineshop
-      DB_USER: postgres
-      DB_PASSWORD: password
-    depends_on:
-      - db
-      - redis
-    volumes:
-      - ./media:/app/media
-      - ./staticfiles:/app/staticfiles
-
-  db:
-    image: postgres:15
-    environment:
-      POSTGRES_DB: onlineshop
-      POSTGRES_PASSWORD: password
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-
-  celery:
-    build: .
-    command: celery -A project worker -l info
-    environment:
-      DEBUG: "False"
-      DB_HOST: db
-      CELERY_BROKER_URL: redis://redis:6379/0
-    depends_on:
-      - db
-      - redis
-
-volumes:
-  postgres_data:
-```
-
-Запуск:
-```powershell
-docker-compose up -d
-```
-
----
-
-## 🔒 Безопасность для Production
-
-### 1. SECRET_KEY
-
-Генерируйте новый ключ:
-
-```python
-from django.core.management.utils import get_random_secret_key
-print(get_random_secret_key())
-```
-
-### 2. SSL/TLS
-
-Большинство сервисов автоматически выдают SSL. Убедитесь:
-
-```python
-SECURE_SSL_REDIRECT = True
-SESSION_COOKIE_SECURE = True
-CSRF_COOKIE_SECURE = True
-SECURE_HSTS_SECONDS = 31536000  # 1 год
-```
-
-### 3. CORS для API
-
-```python
-CORS_ALLOWED_ORIGINS = [
-    "https://yourdomain.com",
-    "https://www.yourdomain.com",
-]
-```
-
-### 4. Database Backups
-
-Для PostgreSQL:
 ```bash
-pg_dump database_url > backup.sql
-psql database_url < backup.sql
+docker ps --format 'table {{.Names}}\t{{.Ports}}'
+sudo ss -lntp
+sudo apt-get update
+sudo apt-get install -y nginx certbot acl
 ```
 
----
+## Подготовка проекта
 
-## 📊 Мониторинг
-
-### Logs
-
-На Render:
-```powershell
-render logs onlineshop
-```
-
-На Railway:
-```powershell
-railway logs
-```
-
-### Error Tracking
-
-Добавьте Sentry:
-
-```powershell
-pip install sentry-sdk
-```
-
-В settings.py:
-```python
-import sentry_sdk
-from sentry_sdk.integrations.django import DjangoIntegration
-
-sentry_sdk.init(
-    dsn="https://<key>@<id>.ingest.sentry.io/<project>",
-    integrations=[DjangoIntegration()],
-    traces_sample_rate=0.1,
-)
-```
-
----
-
-## 💳 Настройка платежей
-
-### Finik в Production
-
-1. Получите API ключи
-2. Установите `FINIK_USE_STUB=False`
-3. Добавьте URL вебхука:
-
-```
-https://yourdomain.com/webhook/finik/
-```
-
-### Twilio для SMS
-
-1. Создайте аккаунт на [twilio.com](https://twilio.com)
-2. Получите credentials
-3. Установите в `.env`:
-
-```
-TWILIO_ACCOUNT_SID=...
-TWILIO_AUTH_TOKEN=...
-TWILIO_FROM_NUMBER=+1...
-```
-
----
-
-## 📈 Оптимизация
-
-### Кэширование
-
-```python
-CACHES = {
-    'default': {
-        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
-        'LOCATION': 'redis://127.0.0.1:6379/1',
-    }
-}
-```
-
-### CDN для медиафайлов
-
-Используйте CloudFlare или AWS CloudFront для быстрой доставки изображений.
-
-### Database Indexing
-
-```python
-class Product(models.Model):
-    name = models.CharField(max_length=200, db_index=True)
-    category = models.ForeignKey(
-        Category,
-        on_delete=models.CASCADE,
-        db_index=True
-    )
-```
-
----
-
-## 🆘 Troubleshooting
-
-### ❌ "ModuleNotFoundError"
-```powershell
-pip install -r requirements.txt
-```
-
-### ❌ "ProgrammingError: relation doesn't exist"
-```powershell
-python manage.py migrate
-```
-
-### ❌ "Permission denied" для media
 ```bash
-chmod -R 755 media/
-chown -R www-data:www-data media/
+sudo mkdir -p /opt/onlineshop
+sudo chown "$USER":"$USER" /opt/onlineshop
+git clone https://github.com/addkol/shop.git /opt/onlineshop
+cd /opt/onlineshop
+cp .env.production.example .env.production
+chmod 600 .env.production
+mkdir -p backups
 ```
 
-### ❌ "Connection refused" для Redis
-Убедитесь, что Redis запущен на сервере.
+Сгенерируйте разные секреты:
 
----
+```bash
+python3 -c 'import secrets; print(secrets.token_urlsafe(64))'
+python3 -c 'import secrets; print(secrets.token_urlsafe(48))'
+```
 
-## 📚 Дополнительно
+Первое значение задайте как `SECRET_KEY`, второе — одинаково как `POSTGRES_PASSWORD` и `DB_PASSWORD`. Заполните точные `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS`, `SITE_URL`, SMTP, SMS и Finik credentials. `FINIK_STATUS_API_URL` — подписанный endpoint статуса, содержащий `{payment_id}`; его фактический production URL необходимо подтвердить и проверить с Finik до открытия продаж.
 
-- [Django Production Checklist](https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/)
-- [Gunicorn Configuration](https://docs.gunicorn.org/en/stable/configure.html)
-- [PostgreSQL on Production](https://www.postgresql.org/docs/current/admin.html)
-- [Celery Best Practices](https://docs.celeryproject.io/en/stable/getting-started/best-practices.html)
+## Права media
 
----
+Контейнер Django работает как UID/GID `10001:10001`, а host Nginx — как `www-data`. Скрипт назначает владельца media и POSIX ACL: Django может создавать файлы, Nginx и deploy-пользователь могут только читать.
 
-**Успешного деплоя!** 🎉
+```bash
+cd /opt/onlineshop
+sudo env PROJECT_ROOT=/opt/onlineshop DEPLOY_USER="$USER" \
+  sh deploy/scripts/setup-media-permissions.sh
+```
+
+Повторный запуск скрипта безопасен. `deploy.sh` остановится, если владелец `data/media` или ACL `www-data` не настроены. После запуска контейнера он дополнительно создаёт и удаляет контрольный файл от имени `appuser`.
+
+## Подготовка SQLite bundle
+
+Эти команды выполняются локально до Hetzner. Остановите изменения каталога и media на время экспорта; исходная SQLite должна иметь все migrations текущего кода (сначала резервная копия, затем `migrate`). Экспорт ничего не удаляет. Сначала выводится классификация test/stub-кандидатов:
+
+```powershell
+.\.venv\Scripts\python.exe manage.py export_initial_data --audit-only
+```
+
+После ручной проверки создайте новый защищённый каталог bundle вне Git:
+
+```powershell
+.\.venv\Scripts\python.exe manage.py export_initial_data `
+  --output-dir C:\secure\onlineshop-initial-20260906 `
+  --accept-classified-data
+```
+
+`--accept-classified-data` нужен только когда отчёт содержит test/stub-кандидаты. Они переносятся без удаления. Bundle содержит:
+
+- `initial-data.json` с пользователями, профилями, категориями, товарами, галереями, оптовыми ценами, корзинами, адресами, заказами, позициями, отзывами и платежными событиями;
+- `media.tar.gz` только с файлами, на которые реально ссылаются `FileField/ImageField`;
+- `manifest.json` с классификацией, количеством записей и SHA-256 каждого media-файла;
+- `SHA256SUMS` для проверки артефактов.
+
+Bundle содержит password hashes и историю заказов: не отправляйте его в Git и передавайте только по SSH. Перед передачей отдельно сохраните показанный SHA-256 файла `SHA256SUMS`.
+
+## Первый deploy
+
+Первый запуск обозначается явно. Он разрешён только когда контейнера и volume OnlineShop PostgreSQL ещё нет:
+
+```bash
+cd /opt/onlineshop
+FIRST_DEPLOY=1 sh deploy/scripts/deploy.sh
+```
+
+Скрипт проверяет чистый Git checkout и media ACL, делает `git pull --ff-only`, собирает image, запускает только собственные `db`/`redis`, применяет migrations отдельным контейнером, запускает web/worker/beat и проверяет Django, migrations, запись media, Redis, Celery и `/health/`. `check --deploy` проверяет конфигурацию, но не действительность внешних ключей: реальные SMS/SMTP/Finik операции проверяются отдельно.
+
+Если первая попытка уже создала PostgreSQL container/volume, не удаляйте volume вслепую и не повторяйте `FIRST_DEPLOY=1`. Поднимите БД, проверьте её состояние и запускайте обычный deploy: он сначала создаст backup, даже если БД ещё пуста.
+
+## Первый import данных и media
+
+На сервере каталог `data/imports` уже подготовлен ACL-скриптом. Передайте bundle, не меняя его содержимое:
+
+```bash
+rsync -a --chmod=Du=rwx,Dg=rx,Do=,Fu=rw,Fg=r,Fo= \
+  onlineshop-initial-20260906/ user@server:/opt/onlineshop/data/imports/initial/
+```
+
+Проверьте сохранённый локально fingerprint, затем запустите import:
+
+```bash
+cd /opt/onlineshop
+sha256sum data/imports/initial/SHA256SUMS
+ACCEPT_CLASSIFIED_DATA=1 sh deploy/scripts/import-initial-data.sh data/imports/initial
+```
+
+Без `ACCEPT_CLASSIFIED_DATA=1` import останавливается, если manifest содержит test/stub-кандидаты. Команда разрешена только для PostgreSQL без бизнес-данных. Она допускает лишь категории, автоматически созданные migration seed, удаляет только этот известный seed внутри транзакции, загружает fixture, сверяет количество строк, безопасно распаковывает media и проверяет все ссылки и SHA-256. Простое копирование `db.sqlite3` в production не используется.
+
+Если SQLite-данные переносить не нужно, создайте администратора после первого deploy:
+
+```bash
+docker compose --env-file .env.production -f docker-compose.prod.yml exec web \
+  python manage.py createsuperuser
+```
+
+## TLS bootstrap
+
+DNS уже должен указывать на сервер, а порты `80/443` должны быть доступны. Скрипт сначала устанавливает HTTP-only конфигурацию без ссылок на сертификат, выполняет `nginx -t`, получает сертификат через webroot и только после этого включает HTTPS-конфигурацию. При ошибке финального `nginx -t` остаётся безопасный HTTP bootstrap.
+
+```bash
+cd /opt/onlineshop
+sudo env DOMAIN=shop.example.com LETSENCRYPT_EMAIL=admin@example.com \
+  PROJECT_ROOT=/opt/onlineshop APP_PORT=8010 \
+  sh deploy/scripts/bootstrap-tls.sh
+```
+
+Проверка:
+
+```bash
+curl -fsS http://127.0.0.1:8010/health/live/
+curl -fsS https://shop.example.com/health/
+sudo nginx -t
+sudo certbot renew --dry-run
+docker compose --env-file .env.production -f docker-compose.prod.yml ps
+```
+
+## Finik перед продажами
+
+Зарегистрируйте `https://shop.example.com/webhook/finik/`. Проверьте beta, затем production: создание QR, `PENDING/PROCESSING`, подтверждённый `SUCCEEDED`, `FAILED/CANCELED`, повторный webhook, timeout API и позднюю оплату отменённого заказа. Redirect браузера никогда не подтверждает оплату; заказ становится оплаченным только после валидного подписанного webhook или явного успешного ответа `check_payment_status()` с совпадающей суммой.
+
+## Последующие deploy
+
+```bash
+cd /opt/onlineshop
+sh deploy/scripts/deploy.sh
+```
+
+Обычный deploy требует уже работающий OnlineShop PostgreSQL и всегда создаёт/проверяет backup до `git pull`, build и migrations. Флага пропуска backup нет. Если БД остановлена или dump невалиден, deploy завершается до изменения кода и схемы.
+
+## Проверка портов
+
+```bash
+docker inspect --format '{{json .HostConfig.PortBindings}}' \
+  "$(docker compose --env-file .env.production -f docker-compose.prod.yml ps -q db)"
+docker inspect --format '{{json .HostConfig.PortBindings}}' \
+  "$(docker compose --env-file .env.production -f docker-compose.prod.yml ps -q redis)"
+```
+
+Обе команды должны выводить `{}` или `null`. Только `web` должен публиковать `127.0.0.1:8010`. В некоторых версиях Compose команда `port` выводит `:0` для неопубликованного порта, поэтому проверка выполняется через `docker inspect`.
+
+## Перед открытием продаж
+
+- `check --deploy`, migrations, `/health/`, Redis и Celery проходят.
+- Внешний URL открывает `/admin/login/`; `/accounts/admin/login/` только перенаправляет на него.
+- SMTP и SMS подтверждены реальными сообщениями.
+- Finik status endpoint и webhook проверены реальными beta/production сценариями.
+- `python manage.py verify_media_references` проходит без missing-файлов.
+- Backup скопирован за пределы Hetzner, restore проверен на отдельном стенде.
+- Sentry/мониторинг и юридические тексты настроены.
+
+Операции backup/restore и платёжные инциденты описаны в `OPERATIONS.md`.

@@ -2,6 +2,7 @@ import re
 
 from django import forms
 from django.contrib.auth.forms import ReadOnlyPasswordHashField, UserChangeForm, UserCreationForm
+from django.contrib.auth.password_validation import validate_password
 
 from .models import User
 
@@ -54,13 +55,13 @@ class ClientRegistrationForm(BootstrapFormMixin, forms.Form):
         help_text="Формат: +996 XXX XXX XXX",
         max_length=20,
     )
-    first_name = forms.CharField(label="Отчество", max_length=150, required=False)
+    first_name = forms.CharField(label="Имя", max_length=150, required=False)
     last_name = forms.CharField(label="Фамилия", max_length=150, required=False)
 
     def clean_phone_number(self):
         phone_number = normalize_phone(self.cleaned_data["phone_number"])
         if not PHONE_RE.match(phone_number):
-            raise forms.ValidationError("Отдельно сохранить формат Киргизии: +996 XXX XXX XXX.")
+            raise forms.ValidationError("Используйте формат Кыргызстана: +996 XXX XXX XXX.")
         return phone_number
 
 
@@ -70,7 +71,7 @@ class PhoneLoginForm(BootstrapFormMixin, forms.Form):
     def clean_phone_number(self):
         phone_number = normalize_phone(self.cleaned_data["phone_number"])
         if not PHONE_RE.match(phone_number):
-            raise forms.ValidationError("Отдельно сохранить формат Киргизии: +996 XXX XXX XXX.")
+            raise forms.ValidationError("Используйте формат Кыргызстана: +996 XXX XXX XXX.")
         return phone_number
 
 
@@ -86,7 +87,7 @@ class VerificationCodeForm(BootstrapFormMixin, forms.Form):
 
 class AdminRegistrationForm(BootstrapFormMixin, forms.Form):
     email = forms.EmailField(label="Электронная почта")
-    first_name = forms.CharField(label="Отчество", max_length=150, required=False)
+    first_name = forms.CharField(label="Имя", max_length=150, required=False)
     last_name = forms.CharField(label="Фамилия", max_length=150, required=False)
     password1 = forms.CharField(label="Пароль", widget=forms.PasswordInput)
     password2 = forms.CharField(label="Подтвердить пароль", widget=forms.PasswordInput)
@@ -101,6 +102,8 @@ class AdminRegistrationForm(BootstrapFormMixin, forms.Form):
         cleaned_data = super().clean()
         if cleaned_data.get("password1") != cleaned_data.get("password2"):
             self.add_error("password2", "Пароли не совпадают.")
+        elif cleaned_data.get("password1"):
+            validate_password(cleaned_data["password1"])
         return cleaned_data
 
     def save(self):

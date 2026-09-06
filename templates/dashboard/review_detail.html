@@ -1,0 +1,2 @@
+{% extends "dashboard/base.html" %}{% block content %}<section class="panel"><h2>{{ review.product }}</h2><p>{{ review.rating }} / 5 · {{ review.created_at }}</p><p>{{ review.text|linebreaksbr }}</p><p>{{ review.is_approved|yesno:"Опубликован,Скрыт" }}</p>
+{% if perms.shop.change_review %}<form method="post">{% csrf_token %}{{ form.as_p }}<button>Подтвердить модерацию</button></form>{% endif %}</section>{% endblock %}

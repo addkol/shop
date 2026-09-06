@@ -1,62 +1,34 @@
 {% extends "base.html" %}
-
-{% block title %}Корзина | Онлайн Магазин{% endblock %}
-
+{% load static %}
+{% block title %}Корзина | Элит Маркет{% endblock %}
 {% block content %}
-<div class="d-flex justify-content-between align-items-center gap-3 mb-4">
-  <div>
-    <h1 class="h2 mb-1">Корзина</h1>
-    <p class="text-muted mb-0">Просмотрите продукты перед оформлением.</p>
-  </div>
-  <a class="btn btn-outline-dark" href="{% url 'shop:index' %}">Продолжить покупки</a>
-</div>
+<section class="section container cart-page">
+  <nav class="breadcrumbs"><a href="{% url 'shop:index' %}">Главная</a><span>/</span><span>Корзина</span></nav>
+  <div class="page-heading cart-heading"><div><span class="eyebrow">Ваш заказ</span><h1>Корзина</h1><p><span data-cart-quantity>{{ cart_quantity }}</span> товар(а) в корзине</p></div><a class="btn btn-outline-primary" href="{% url 'shop:index' %}#catalog">← Продолжить покупки</a></div>
 
-{% if cart_rows %}
-  <div class="table-responsive">
-    <table class="table align-middle">
-      <thead>
-        <tr>
-          <th>Товар</th>
-          <th class="text-center">Количество</th>
-          <th class="text-end">Сумма</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
+  {% if cart_rows %}
+    <div class="cart-layout">
+      <div class="cart-items-list">
         {% for row in cart_rows %}
-          <tr>
-            <td>
-              <div class="fw-semibold">{{ row.product.name }}</div>
-              <div class="small text-muted">{{ row.unit_price }} сом за шт.</div>
-            </td>
-            <td class="text-center">
-              <form method="post" action="{% url 'shop:update-cart' row.product.id %}" class="cart-quantity-form">
-                {% csrf_token %}
-                <input type="number" name="quantity" class="form-control form-control-sm quantity-input" value="{{ row.quantity }}" min="0" max="{{ row.product.stock }}" aria-label="Количество">
-                <button class="btn btn-outline-dark btn-sm quantity-save" type="submit" title="Обновить количество" aria-label="Обновить количество">OK</button>
-              </form>
-            </td>
-            <td class="text-end fw-semibold">{{ row.subtotal }} сом</td>
-            <td class="text-end">
-              <form method="post" action="{% url 'shop:remove-from-cart' row.product.id %}">
-                {% csrf_token %}
-                <button class="btn btn-link text-danger p-0" type="submit">Удалить</button>
-              </form>
-            </td>
-          </tr>
+          <article class="cart-item-card" data-cart-item>
+            <a class="cart-item-image" href="{{ row.product.get_absolute_url }}">{% if row.product.main_image_url %}<img src="{{ row.product.main_image_url }}" alt="{{ row.product.name }}">{% else %}<img src="{% static 'img/no-image.svg' %}" alt="">{% endif %}</a>
+            <div class="cart-item-info"><span>{{ row.product.brand|default:row.product.category.name }}</span><h2><a href="{{ row.product.get_absolute_url }}">{{ row.product.name }}</a></h2><small>Артикул: {{ row.product.sku }}</small><b data-cart-wholesale class="{% if row.is_wholesale %}wholesale-applied{% elif row.items_until_wholesale %}wholesale-progress{% else %}d-none{% endif %}">{% if row.is_wholesale %}Оптовая цена применена{% elif row.items_until_wholesale %}До следующей оптовой цены: ещё {{ row.items_until_wholesale }} шт.{% endif %}</b></div>
+            <div class="cart-item-quantity">
+              <form method="post" action="{% url 'shop:update-cart' row.product.id %}" data-cart-update-form>{% csrf_token %}<label>Количество</label><div class="quantity-stepper quantity-stepper-small" data-quantity-stepper><button type="button" data-quantity-minus aria-label="Уменьшить"><svg aria-hidden="true"><use href="{% static 'img/icons.svg' %}#minus"></use></svg></button><input type="number" name="quantity" value="{{ row.quantity }}" min="0" max="{{ row.product.stock }}" aria-label="Количество {{ row.product.name }}"><button type="button" data-quantity-plus aria-label="Увеличить"><svg aria-hidden="true"><use href="{% static 'img/icons.svg' %}#plus"></use></svg></button></div><button class="cart-update-button" type="submit">Обновить</button><span class="cart-update-status" data-cart-update-status aria-live="polite"></span></form>
+            </div>
+            <div class="cart-item-price"><small data-cart-unit>{{ row.unit_price }} сом × {{ row.quantity }}</small><strong data-cart-subtotal>{{ row.subtotal }} сом</strong><del data-cart-retail class="{% if not row.is_wholesale %}d-none{% endif %}">{{ row.retail_subtotal }} сом</del></div>
+            <form class="cart-remove" method="post" action="{% url 'shop:remove-from-cart' row.product.id %}">{% csrf_token %}<button type="submit" aria-label="Удалить {{ row.product.name }}"><svg aria-hidden="true"><use href="{% static 'img/icons.svg' %}#close"></use></svg></button></form>
+          </article>
         {% endfor %}
-      </tbody>
-    </table>
-  </div>
-  <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 border-top pt-4">
-    <strong class="fs-4">Итого: {{ cart_total }} сом</strong>
-    {% if request.user.is_authenticated %}
-      <a class="btn btn-dark btn-lg" href="{% url 'shop:checkout' %}">Оформить заказ</a>
-    {% else %}
-      <a class="btn btn-dark btn-lg" href="{% url 'accounts:login' %}">Войти для оформления</a>
-    {% endif %}
-  </div>
-{% else %}
-  <div class="empty-state">Корзина пуста.</div>
-{% endif %}
+      </div>
+      <aside class="cart-summary-card">
+        <h2>Итого заказа</h2><div class="summary-line"><span>Товары (<b data-cart-quantity>{{ cart_quantity }}</b> шт.)</span><strong data-cart-total>{{ cart_total }} сом</strong></div><div class="summary-line"><span>Доставка</span><strong>При оформлении</strong></div><div class="summary-total"><span>К оплате</span><strong data-cart-total>{{ cart_total }} сом</strong></div><div class="summary-wholesale-note"><span>ОПТ</span><p>Оптовые цены автоматически учтены для подходящих товаров.</p></div>
+        {% if request.user.is_authenticated %}<a class="btn btn-primary btn-xl w-100" href="{% url 'shop:checkout' %}">Оформить заказ →</a>{% else %}<a class="btn btn-primary btn-xl w-100" href="{% url 'accounts:login' %}">Войти для оформления</a>{% endif %}
+        <div class="secure-checkout"><svg aria-hidden="true"><use href="{% static 'img/icons.svg' %}#lock"></use></svg><span><strong>Безопасное оформление</strong><small>Данные защищены шифрованием</small></span></div>
+      </aside>
+    </div>
+  {% else %}
+    <div class="empty-state cart-empty"><svg aria-hidden="true"><use href="{% static 'img/icons.svg' %}#cart"></use></svg><h2>Корзина пока пуста</h2><p>Найдите нужные товары в каталоге. Оптовые цены применяются по настроенным диапазонам.</p><a class="btn btn-primary btn-lg" href="{% url 'shop:index' %}#catalog">Перейти в каталог</a></div>
+  {% endif %}
+</section>
 {% endblock %}

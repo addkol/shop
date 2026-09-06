@@ -1,67 +1,107 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}Каталог | Онлайн Магазин{% endblock %}
+{% block title %}{% if current_category %}{{ current_category.name }}{% elif query %}Поиск «{{ query }}»{% else %}Элит Маркет — интернет-магазин в Кыргызстане{% endif %}{% endblock %}
 
 {% block content %}
-<div class="d-flex flex-column flex-lg-row align-items-lg-end justify-content-between gap-3 mb-4">
-  <div>
-    <h1 class="h2 mb-1">{% if current_category %}{{ current_category.name }}{% else %}Каталог{% endif %}</h1>
-    <p class="text-muted mb-0">Новые товары с лёгким оформлением и оплатой QR.</p>
-  </div>
-  <div class="category-strip d-flex flex-wrap gap-2">
-    <a class="btn btn-sm {% if not current_category %}btn-dark{% else %}btn-outline-dark{% endif %}" href="{% url 'shop:index' %}">Все</a>
-    {% for category in categories %}
-      <a class="btn btn-sm {% if current_category == category %}btn-dark{% else %}btn-outline-dark{% endif %}" href="{{ category.get_absolute_url }}">{{ category.name }}</a>
-    {% endfor %}
-  </div>
-</div>
+{% if show_home_sections %}
+  <section class="hero-section">
+    <div class="container hero-grid">
+      <div class="hero-copy">
+        <span class="eyebrow">Покупайте выгоднее вместе</span>
+        <h1>Товары для жизни<br><em>по оптовым ценам</em></h1>
+        <p>Электроника, товары для дома, красота, одежда и ещё тысячи товаров с доставкой по Кыргызстану.</p>
+        <div class="hero-actions"><a class="btn btn-gold btn-lg" href="#catalog">Перейти в каталог</a><a class="hero-link" href="#wholesale">Как работает опт <span>→</span></a></div>
+        <div class="hero-trust"><span><b>ОПТ</b> автоматический пересчёт</span><span><b>14</b> дней на возврат</span><span><b>HTTPS</b> защищённое соединение</span></div>
+      </div>
+      <div class="hero-visual" aria-label="Специальное предложение">
+        <div class="hero-orbit hero-orbit-one"></div><div class="hero-orbit hero-orbit-two"></div>
+        {% if hero_product %}
+          <a class="hero-product" href="{{ hero_product.get_absolute_url }}">
+            <span class="hero-discount">Оптовая цена</span>
+            <img src="{{ hero_product.main_image_url }}" alt="{{ hero_product.name }}">
+            <span class="hero-product-info"><small>{{ hero_product.brand|default:"Выбор покупателей" }}</small><strong>{{ hero_product.name }}</strong><b>от {{ hero_product.wholesale_price }} сом</b></span>
+          </a>
+        {% endif %}
+      </div>
+    </div>
+  </section>
 
-<div class="row g-4">
-  {% for product in page_obj %}
-    <div class="col-12 col-sm-6 col-lg-4 col-xl-3">
-      <article class="product-card h-100">
-        <a href="{{ product.get_absolute_url }}" class="product-image-link">
-          {% with main_image_url=product.main_image_url %}
-          {% if main_image_url %}
-            <img src="{{ main_image_url }}" alt="{{ product.name }}" class="product-image">
-          {% else %}
-            <img src="{% static 'img/no-image.svg' %}" alt="{{ product.name }}" class="product-image">
-          {% endif %}
-          {% endwith %}
+  <section class="section container category-section" aria-labelledby="categoryTitle">
+    <div class="section-heading"><div><span class="eyebrow">Всё необходимое</span><h2 id="categoryTitle">Популярные категории</h2></div><a href="#catalog">Смотреть весь каталог <span>→</span></a></div>
+    <div class="category-grid">
+      {% for category in categories %}
+        <a class="category-card {% if forloop.counter > 12 %}category-card-more{% endif %}" href="{{ category.get_absolute_url }}">
+          <span class="category-icon"><svg aria-hidden="true"><use href="{% static 'img/icons.svg' %}#{{ category.icon_name }}"></use></svg></span>
+          <strong>{{ category.name }}</strong>
+          <small>{{ category.product_count }} товар(а)</small>
         </a>
-        <div class="p-3">
-          <div class="small text-muted mb-1">{{ product.category.name }}</div>
-          <h2 class="h6 product-title"><a href="{{ product.get_absolute_url }}">{{ product.name }}</a></h2>
-          <div class="d-flex align-items-center justify-content-between gap-2 mt-3">
-            <strong>{{ product.price }} сом</strong>
-            <form method="post" action="{% url 'shop:add-to-cart' product.id %}">
-              {% csrf_token %}
-              <input type="hidden" name="next" value="{{ request.get_full_path }}">
-              <button class="btn btn-dark btn-sm" type="submit" {% if not product.available %}disabled{% endif %}>Добавить</button>
-            </form>
-          </div>
-        </div>
-      </article>
+      {% endfor %}
     </div>
-  {% empty %}
-    <div class="col-12">
-      <div class="empty-state">Нет доступных товаров.</div>
-    </div>
-  {% endfor %}
-</div>
+  </section>
 
-{% if page_obj.paginator.num_pages > 1 %}
-  <nav class="mt-4" aria-label="Страницы каталога">
-    <ul class="pagination">
-      {% if page_obj.has_previous %}
-        <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">Назад</a></li>
-      {% endif %}
-      <li class="page-item active"><span class="page-link">{{ page_obj.number }}</span></li>
-      {% if page_obj.has_next %}
-        <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">Далее</a></li>
-      {% endif %}
-    </ul>
-  </nav>
+  <section class="wholesale-banner container" id="wholesale">
+    <div class="wholesale-badge">ОПТ</div>
+    <div><span class="eyebrow">Выгода для бизнеса и семьи</span><h2>Оптовая цена применяется автоматически</h2><p>Добавьте нужное количество товара, и система применит настроенный для него ценовой диапазон.</p></div>
+    <a class="btn btn-light" href="#catalog">Выбрать товары</a>
+  </section>
+
+  <section class="section container" id="popular">
+    <div class="section-heading"><div><span class="eyebrow">Выбор покупателей</span><h2>Популярные товары</h2></div><a href="#catalog">Смотреть все <span>→</span></a></div>
+    <div class="product-grid featured-grid">{% for product in featured_products %}{% include "includes/product_card.html" %}{% endfor %}</div>
+  </section>
+
+  <section class="section section-soft" id="new">
+    <div class="container">
+      <div class="section-heading"><div><span class="eyebrow">Только поступили</span><h2>Новинки</h2></div></div>
+      <div class="product-grid featured-grid">{% for product in new_products %}{% include "includes/product_card.html" %}{% endfor %}</div>
+    </div>
+  </section>
+{% endif %}
+
+<section class="section container catalog-section" id="catalog">
+  <nav class="breadcrumbs" aria-label="Хлебные крошки"><a href="{% url 'shop:index' %}">Главная</a><span>/</span>{% if current_category %}<span>{{ current_category.name }}</span>{% else %}<span>Каталог</span>{% endif %}</nav>
+  <div class="catalog-heading">
+    <div><span class="eyebrow">Каталог Элит Маркет</span>{% if show_home_sections %}<h2>Все товары</h2>{% else %}<h1>{% if current_category %}{{ current_category.name }}{% elif query %}Результаты поиска{% else %}Все товары{% endif %}</h1>{% endif %}<p>{% if query %}По запросу «{{ query }}»{% else %}Найдено товаров: {{ page_obj.paginator.count }}{% endif %}</p></div>
+    <button class="btn btn-outline-primary filter-toggle" type="button" data-filter-toggle><svg aria-hidden="true"><use href="{% static 'img/icons.svg' %}#filter"></use></svg> Фильтры</button>
+  </div>
+
+  <div class="catalog-layout">
+    <aside class="catalog-filters" data-filter-panel>
+      <form method="get" action="{% if current_category %}{{ current_category.get_absolute_url }}{% else %}{% url 'shop:index' %}{% endif %}">
+        <div class="filter-head"><h2>Фильтры</h2><a href="{% if current_category %}{{ current_category.get_absolute_url }}{% else %}{% url 'shop:index' %}{% endif %}">Сбросить</a></div>
+        <div class="filter-group"><label for="filterSearch">Поиск</label><input class="form-control" id="filterSearch" type="search" name="q" value="{{ query }}" placeholder="Название товара"></div>
+        <div class="filter-group"><span class="filter-label">Цена, сом</span><div class="price-filter"><input class="form-control" type="number" name="min_price" value="{{ min_price }}" min="0" placeholder="от" aria-label="Минимальная цена"><input class="form-control" type="number" name="max_price" value="{{ max_price }}" min="0" placeholder="до" aria-label="Максимальная цена"></div></div>
+        {% if brands %}<div class="filter-group"><label for="brandFilter">Бренд</label><select class="form-control" id="brandFilter" name="brand"><option value="">Все бренды</option>{% for brand in brands %}<option value="{{ brand }}" {% if selected_brand == brand %}selected{% endif %}>{{ brand }}</option>{% endfor %}</select></div>{% endif %}
+        <input type="hidden" name="sort" value="{{ sort }}">
+        <button class="btn btn-primary w-100" type="submit">Показать товары</button>
+      </form>
+    </aside>
+
+    <div class="catalog-results">
+      <form class="catalog-toolbar" method="get">
+        {% if query %}<input type="hidden" name="q" value="{{ query }}">{% endif %}{% if selected_brand %}<input type="hidden" name="brand" value="{{ selected_brand }}">{% endif %}{% if min_price %}<input type="hidden" name="min_price" value="{{ min_price }}">{% endif %}{% if max_price %}<input type="hidden" name="max_price" value="{{ max_price }}">{% endif %}
+        <label for="sortProducts">Сортировка:</label><select id="sortProducts" name="sort" data-sort-select><option value="newest" {% if sort == 'newest' %}selected{% endif %}>Сначала новинки</option><option value="price_asc" {% if sort == 'price_asc' %}selected{% endif %}>Сначала дешевле</option><option value="price_desc" {% if sort == 'price_desc' %}selected{% endif %}>Сначала дороже</option><option value="name" {% if sort == 'name' %}selected{% endif %}>По названию</option></select>
+      </form>
+      <div class="product-grid">
+        {% for product in page_obj %}{% include "includes/product_card.html" %}{% empty %}<div class="empty-state"><svg aria-hidden="true"><use href="{% static 'img/icons.svg' %}#search"></use></svg><h2>Товары не найдены</h2><p>Измените параметры поиска или сбросьте фильтры.</p><a class="btn btn-primary" href="{% url 'shop:index' %}">Смотреть все товары</a></div>{% endfor %}
+      </div>
+      {% if page_obj.paginator.num_pages > 1 %}<nav class="pagination" aria-label="Страницы каталога">{% if page_obj.has_previous %}<a href="?q={{ query|urlencode }}&brand={{ selected_brand|urlencode }}&min_price={{ min_price }}&max_price={{ max_price }}&sort={{ sort }}&page={{ page_obj.previous_page_number }}">←</a>{% endif %}<span>Страница {{ page_obj.number }} из {{ page_obj.paginator.num_pages }}</span>{% if page_obj.has_next %}<a href="?q={{ query|urlencode }}&brand={{ selected_brand|urlencode }}&min_price={{ min_price }}&max_price={{ max_price }}&sort={{ sort }}&page={{ page_obj.next_page_number }}">→</a>{% endif %}</nav>{% endif %}
+    </div>
+  </div>
+</section>
+
+{% if show_home_sections %}
+  <section class="section container benefits-section" id="benefits">
+    <div class="section-heading"><div><span class="eyebrow">Покупайте спокойно</span><h2>Почему выбирают нас</h2></div></div>
+    <div class="benefit-grid">
+      <article><span><svg aria-hidden="true"><use href="{% static 'img/icons.svg' %}#truck"></use></svg></span><h3>Доставка по Кыргызстану</h3><p>Быстро отправляем заказы в Бишкек и регионы.</p></article>
+      <article><span><svg aria-hidden="true"><use href="{% static 'img/icons.svg' %}#shield"></use></svg></span><h3>Гарантия качества</h3><p>Проверяем товары и работаем с надёжными поставщиками.</p></article>
+      <article><span><svg aria-hidden="true"><use href="{% static 'img/icons.svg' %}#refresh"></use></svg></span><h3>Возврат 14 дней</h3><p>Прозрачные условия обмена и возврата покупки.</p></article>
+      <article><span><svg aria-hidden="true"><use href="{% static 'img/icons.svg' %}#wallet"></use></svg></span><h3>Опт без менеджера</h3><p>Цена автоматически снижается по диапазонам конкретного товара.</p></article>
+    </div>
+  </section>
+
+  {% if brands %}<section class="section brands-strip container"><div class="section-heading"><div><span class="eyebrow">Оригинальная продукция</span><h2>Бренды</h2></div><a href="{% url 'shop:brands' %}">Все бренды <span>→</span></a></div><div class="brand-pills">{% for brand in brands %}<a href="{% url 'shop:index' %}?brand={{ brand|urlencode }}">{{ brand }}</a>{% endfor %}</div></section>{% endif %}
 {% endif %}
 {% endblock %}

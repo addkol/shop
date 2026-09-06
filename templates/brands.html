@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Бренды | Элит Маркет{% endblock %}
+{% block content %}
+<section class="section container brands-page">
+  <nav class="breadcrumbs"><a href="{% url 'shop:index' %}">Главная</a><span>/</span><span>Бренды</span></nav>
+  <div class="page-heading"><span class="eyebrow">Проверенные производители</span><h1>Бренды в Элит Маркет</h1><p>Выбирайте товары любимых производителей по розничной или оптовой цене.</p></div>
+  <div class="brands-grid">
+    {% for brand in brands %}<a href="{% url 'shop:index' %}?brand={{ brand|urlencode }}"><span>{{ brand|slice:':1' }}</span><strong>{{ brand }}</strong><small>Смотреть товары →</small></a>{% empty %}<div class="empty-state"><h2>Бренды скоро появятся</h2></div>{% endfor %}
+  </div>
+</section>
+{% endblock %}

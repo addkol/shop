@@ -1,12 +1,13 @@
 {% extends "base.html" %}
 
-{% block title %}Вход администратора | Онлайн Магазин{% endblock %}
+{% block title %}Вход администратора | Элит Маркет{% endblock %}
 
 {% block content %}
 <div class="auth-panel mx-auto">
   <h1 class="h3 mb-3">Вход администратора</h1>
   <form method="post" novalidate>
     {% csrf_token %}
+    <input type="hidden" name="next" value="{{ request.GET.next }}">
     {% if form.non_field_errors %}
       <div class="alert alert-danger">{{ form.non_field_errors }}</div>
     {% endif %}
@@ -19,6 +20,6 @@
     {% endfor %}
     <button class="btn btn-dark w-100" type="submit">Войти</button>
   </form>
-  <p class="mt-3 mb-0 small text-muted"><a href="{% url 'accounts:admin-register' %}">Регистрация аккаунта администратора</a></p>
+  <p class="mt-3 mb-0 small text-muted">Новые администраторы создаются действующим суперпользователем.</p>
 </div>
 {% endblock %}

@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Вход | Онлайн Магазин{% endblock %}
+{% block title %}Вход | Элит Маркет{% endblock %}
 
 {% block content %}
 <div class="auth-panel mx-auto">
@@ -14,11 +14,11 @@
         {% for error in field.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
       </div>
     {% endfor %}
-    <button class="btn btn-dark w-100" type="submit">Отправить Код SMS</button>
+    <button class="btn btn-dark w-100" type="submit">{% if fixed_otp_enabled %}Получить подтверждение{% else %}Отправить Код SMS{% endif %}</button>
   </form>
   <div class="d-flex justify-content-between gap-3 mt-3 small">
     <a href="{% url 'accounts:register' %}">Создать аккаунт клиента</a>
-    <a href="{% url 'accounts:admin-login' %}">Вход администратора</a>
+    <a href="{% url 'admin:login' %}">Вход администратора</a>
   </div>
 </div>
 {% endblock %}

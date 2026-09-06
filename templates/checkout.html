@@ -1,72 +1,21 @@
 {% extends "base.html" %}
-
-{% block title %}Оформление | Онлайн Магазин{% endblock %}
-
+{% load static %}
+{% block title %}Оформление заказа | Элит Маркет{% endblock %}
 {% block content %}
-<div class="checkout-layout">
-  <section class="checkout-main">
-    <div class="checkout-header">
-      <span>Шаг 1 из 2</span>
-      <h1>Оформление заказа</h1>
-      <p>Проверьте адрес доставки и выберите удобный способ оплаты.</p>
-    </div>
-
+<section class="section container checkout-page">
+  <nav class="breadcrumbs"><a href="{% url 'shop:index' %}">Главная</a><span>/</span><a href="{% url 'shop:cart' %}">Корзина</a><span>/</span><span>Оформление</span></nav>
+  <div class="checkout-header"><span class="eyebrow">Последний шаг</span><h1>Оформление заказа</h1><p>Укажите адрес доставки и выберите удобный способ оплаты.</p><div class="checkout-security"><span><svg aria-hidden="true"><use href="{% static 'img/icons.svg' %}#shield"></use></svg>Безопасная оплата</span><span><svg aria-hidden="true"><use href="{% static 'img/icons.svg' %}#lock"></use></svg>Защищённое соединение</span></div></div>
+  <div class="checkout-layout">
     <form method="post" novalidate class="checkout-form">
       {% csrf_token %}
-      {% if form.non_field_errors %}
-        <div class="alert alert-danger">{{ form.non_field_errors }}</div>
-      {% endif %}
-
-      <div class="checkout-section">
-        <h2 class="h5">Адрес доставки</h2>
-        <div class="checkout-fields">
-          {% for field in form %}
-            {% if field.name != "payment_method" and field.name != "save_address" %}
-              <div class="checkout-field checkout-field-{{ field.name }}">
-                <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
-                {{ field }}
-                {% for error in field.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
-              </div>
-            {% endif %}
-          {% endfor %}
-        </div>
-      </div>
-
-      <div class="checkout-section">
-        <h2 class="h5">Способ оплаты</h2>
-        <div class="payment-options">
-          {% for choice in form.payment_method %}
-            <label class="payment-option" for="{{ choice.id_for_label }}">
-              {{ choice.tag }}
-              <span>{{ choice.choice_label }}</span>
-            </label>
-          {% endfor %}
-        </div>
-      </div>
-
-      <button class="btn btn-dark btn-lg checkout-submit" type="submit">Оформить заказ</button>
+      {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+      <section class="checkout-section"><div class="checkout-section-title"><span>1</span><div><h2>Адрес доставки</h2><p>Куда привезти ваш заказ?</p></div></div><div class="checkout-fields">{% for field in form %}{% if field.name != "payment_method" and field.name != "save_address" %}<div class="checkout-field checkout-field-{{ field.name }}"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% for error in field.errors %}<div class="invalid-feedback">{{ error }}</div>{% endfor %}</div>{% endif %}{% endfor %}</div><label class="save-address-option">{{ form.save_address }}<span>Сохранить этот адрес для следующих заказов</span></label></section>
+      <section class="checkout-section"><div class="checkout-section-title"><span>2</span><div><h2>Способ оплаты</h2><p>Выберите подходящий вариант</p></div></div><div class="payment-options">{% for choice in form.payment_method %}<label class="payment-option" for="{{ choice.id_for_label }}">{{ choice.tag }}<span><strong>{{ choice.choice_label }}</strong><small>{% if forloop.first %}Оплата по QR-коду через Finik{% elif forloop.counter == 2 %}Банковской картой онлайн{% else %}Получить защищённую ссылку{% endif %}</small></span></label>{% endfor %}</div></section>
+      <button class="btn btn-primary btn-xl checkout-submit" type="submit">Подтвердить заказ на {{ cart_total }} сом</button>
+      <p class="checkout-consent">Нажимая кнопку, вы принимаете <a href="{% url 'shop:terms' %}" target="_blank" rel="noopener">условия покупки</a> и <a href="{% url 'shop:privacy' %}" target="_blank" rel="noopener">политику конфиденциальности</a>.</p>
     </form>
-  </section>
 
-  <aside class="checkout-summary">
-    <div class="summary-panel checkout-summary-panel">
-      <h2 class="h5">Ваш заказ</h2>
-      <div class="checkout-items">
-        {% for row in cart_rows %}
-          <div class="checkout-item">
-            <div>
-              <strong>{{ row.product.name }}</strong>
-              <span>{{ row.quantity }} шт. · {{ row.unit_price }} сом</span>
-            </div>
-            <b>{{ row.subtotal }} сом</b>
-          </div>
-        {% endfor %}
-      </div>
-      <div class="checkout-total">
-        <span>Итого</span>
-        <strong>{{ cart_total }} сом</strong>
-      </div>
-    </div>
-  </aside>
-</div>
+    <aside class="checkout-summary"><div class="checkout-summary-card"><h2>Ваш заказ</h2><div class="checkout-items">{% for row in cart_rows %}<article class="checkout-item"><div class="checkout-item-image">{% if row.product.main_image_url %}<img src="{{ row.product.main_image_url }}" alt="{{ row.product.name }}">{% else %}<img src="{% static 'img/no-image.svg' %}" alt="">{% endif %}<span>{{ row.quantity }}</span></div><div><strong>{{ row.product.name }}</strong><small>{{ row.unit_price }} сом за шт.</small>{% if row.is_wholesale %}<b>Оптовая цена</b>{% endif %}</div><strong>{{ row.subtotal }} сом</strong></article>{% endfor %}</div><div class="summary-line"><span>Стоимость товаров</span><strong>{{ cart_total }} сом</strong></div><div class="summary-line"><span>Доставка</span><strong>Уточняется</strong></div><div class="checkout-total"><span>Итого</span><strong>{{ cart_total }} сом</strong></div></div><div class="checkout-help"><svg aria-hidden="true"><use href="{% static 'img/icons.svg' %}#user"></use></svg><span><strong>Нужна помощь?</strong><small>Позвоните: +996 (700) 111-222</small></span></div></aside>
+  </div>
+</section>
 {% endblock %}

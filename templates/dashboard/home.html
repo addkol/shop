@@ -1,0 +1,9 @@
+{% extends "dashboard/base.html" %}{% block content %}
+<div class="metrics">{% for label,value in metrics %}<section class="metric"><span>{{ label }}</span><strong>{{ value }}</strong></section>{% endfor %}
+{% if customer_count != None %}<section class="metric"><span>Клиентов</span><strong>{{ customer_count }}</strong></section>{% endif %}
+{% if low_stock_count != None %}<section class="metric"><span>Товаров с низким остатком</span><strong>{{ low_stock_count }}</strong></section>{% endif %}</div>
+{% if perms.shop.view_order %}<section class="panel"><h2>Последние заказы</h2>{% include "dashboard/order_table.html" with order_rows=latest_orders %}</section>
+<section class="panel"><h2>Требуют внимания</h2><p class="muted">Возвраты и ошибки сверки оплаты. Оплата подтверждается только провайдером.</p>{% include "dashboard/order_table.html" with order_rows=attention_orders %}</section>{% endif %}
+{% if perms.shop.view_product %}<section class="panel"><h2>Мало на складе <span class="badge">≤ 5 шт.</span></h2><div class="stock-grid">{% for product in low_stock %}<a class="stock-card" href="{% url 'dashboard:stock' %}?q={{ product.name|urlencode }}"><span>{{ product.name }}</span><strong>{{ product.stock }} шт.</strong></a>{% empty %}<p class="empty">Критичных остатков нет</p>{% endfor %}</div></section>{% endif %}
+{% if not metrics and not perms.shop.view_product and not perms.accounts.view_user %}<div class="notice">Разделы ещё не назначены. Попросите владельца предоставить права вашей группе.</div>{% endif %}
+{% endblock %}

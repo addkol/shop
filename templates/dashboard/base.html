@@ -1,0 +1,20 @@
+{% load static %}<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ title }} — Управление магазином</title><link rel="stylesheet" href="{% static 'css/dashboard.css' %}"></head>
+<body><a class="skip" href="#main">К содержимому</a>
+<aside class="sidebar"><a class="brand" href="{% url 'dashboard:home' %}">Элит Маркет<span>Управление магазином</span></a>
+<nav aria-label="Разделы управления">
+<a href="{% url 'dashboard:home' %}">Обзор</a>
+{% if perms.shop.view_order %}<a href="{% url 'dashboard:orders' %}">Заказы</a>{% endif %}
+{% if perms.shop.view_product %}<a href="{% url 'dashboard:products' %}">Товары</a><a href="{% url 'dashboard:stock' %}">Склад</a>{% endif %}
+{% if perms.shop.view_category %}<a href="{% url 'dashboard:categories' %}">Категории</a>{% endif %}
+{% if perms.accounts.view_user %}<a href="{% url 'dashboard:customers' %}">Клиенты</a>{% endif %}
+{% if perms.payment.view_paymentevent and perms.shop.view_order %}<a href="{% url 'dashboard:payments' %}">Платежи</a>{% endif %}
+{% if perms.shop.view_review %}<a href="{% url 'dashboard:reviews' %}">Отзывы</a>{% endif %}
+</nav><div class="sidebar-foot"><a href="{% url 'shop:index' %}">Открыть магазин ↗</a><a href="{% url 'admin:index' %}">Техническая админка ↗</a></div></aside>
+<div class="workspace"><header class="topbar"><span>Рабочее пространство</span><div>{{ request.user.get_short_name }} <form method="post" action="{% url 'accounts:logout' %}">{% csrf_token %}<button class="secondary">Выйти</button></form></div></header>
+<main id="main"><div class="heading"><div><p class="eyebrow">ЭЛИТ МАРКЕТ / УПРАВЛЕНИЕ</p><h1>{{ title }}</h1></div>{% block actions %}{% endblock %}</div>
+{% for message in messages %}<div class="notice" role="status">{{ message }}</div>{% endfor %}
+{% block content %}{% endblock %}
+</main><footer>Суммы указаны в сомах · Доступ определяется вашей ролью</footer></div>
+</body></html>

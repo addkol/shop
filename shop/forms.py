@@ -1,6 +1,6 @@
 from django import forms
 
-from .models import Address, Order
+from .models import Address, Order, Review
 
 
 class BootstrapFormMixin:
@@ -21,9 +21,9 @@ class CheckoutForm(BootstrapFormMixin, forms.Form):
         label="Сохраненный адрес",
         queryset=Address.objects.none(),
         required=False,
-        empty_label="Открыть новый адрес",
+        empty_label="Указать новый адрес",
     )
-    country = forms.CharField(max_length=100, initial="Киргизия", required=False, label="Страна")
+    country = forms.CharField(max_length=100, initial="Кыргызстан", required=False, label="Страна")
     city = forms.CharField(max_length=100, required=False, label="Город")
     street = forms.CharField(max_length=150, required=False, label="Улица")
     building = forms.CharField(max_length=50, required=False, label="Дом")
@@ -31,7 +31,7 @@ class CheckoutForm(BootstrapFormMixin, forms.Form):
     postal_code = forms.CharField(max_length=20, required=False, label="Почтовый код")
     save_address = forms.BooleanField(label="Сохранить адрес", required=False, initial=True)
     payment_method = forms.ChoiceField(
-        choices=Order.PaymentMethod.choices,
+        choices=[(Order.PaymentMethod.QR, Order.PaymentMethod.QR.label)],
         widget=forms.RadioSelect,
         initial=Order.PaymentMethod.QR,
         label="Способ оплаты",
@@ -41,7 +41,7 @@ class CheckoutForm(BootstrapFormMixin, forms.Form):
         self.user = user
         super().__init__(*args, **kwargs)
         if user and user.is_authenticated:
-            self.fields["existing_address"].queryset = user.addresses.all()
+            self.fields["existing_address"].queryset = user.addresses.filter(is_saved=True)
 
     def clean(self):
         cleaned_data = super().clean()
@@ -59,6 +59,7 @@ class CheckoutForm(BootstrapFormMixin, forms.Form):
         if existing_address:
             return existing_address
 
+        save_address = self.cleaned_data.get("save_address", False)
         return Address.objects.create(
             user=self.user,
             country=self.cleaned_data["country"],
@@ -67,7 +68,8 @@ class CheckoutForm(BootstrapFormMixin, forms.Form):
             building=self.cleaned_data["building"],
             apartment=self.cleaned_data.get("apartment", ""),
             postal_code=self.cleaned_data.get("postal_code", ""),
-            is_default=not self.user.addresses.exists(),
+            is_default=save_address and not self.user.addresses.filter(is_saved=True).exists(),
+            is_saved=save_address,
         )
 
 
@@ -83,3 +85,19 @@ class CancelOrderForm(BootstrapFormMixin, forms.Form):
             }
         ),
     )
+
+
+class ReviewForm(BootstrapFormMixin, forms.ModelForm):
+    class Meta:
+        model = Review
+        fields = ("rating", "text")
+        labels = {"rating": "Оценка", "text": "Ваш отзыв"}
+        widgets = {
+            "rating": forms.Select(choices=[(value, f"{value} из 5") for value in range(5, 0, -1)]),
+            "text": forms.Textarea(
+                attrs={
+                    "rows": 5,
+                    "placeholder": "Расскажите о качестве товара, упаковке и использовании.",
+                }
+            ),
+        }

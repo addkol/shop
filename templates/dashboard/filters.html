@@ -1,0 +1,4 @@
+<form method="get" class="filters">
+{% if filter_form %}{{ filter_form.non_field_errors }}{% for field in filter_form %}<label>{{ field.label }}{{ field }}{{ field.errors }}</label>{% endfor %}
+{% elif search %}<label>Поиск<input name="q" value="{{ request.GET.q }}" maxlength="150" placeholder="Название, имя или телефон"></label>{% endif %}
+<button>Найти</button><a href="{{ request.path }}">Сбросить</a></form>

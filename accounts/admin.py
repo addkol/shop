@@ -64,7 +64,20 @@ class UserAdmin(DjangoUserAdmin):
 
 @admin.register(ClientProfile)
 class ClientProfileAdmin(admin.ModelAdmin):
-    list_display = ("user", "phone_verified", "verification_code_sent_at", "verification_attempts")
+    list_display = (
+        "user",
+        "phone_verified",
+        "verification_code_sent_at",
+        "verification_attempts",
+        "verification_requests_count",
+    )
+    readonly_fields = (
+        "verification_code_hash",
+        "verification_code_sent_at",
+        "verification_attempts",
+        "verification_requests_started_at",
+        "verification_requests_count",
+    )
     search_fields = ("user__phone_number", "user__first_name", "user__last_name")
 
 
@@ -72,3 +85,4 @@ class ClientProfileAdmin(admin.ModelAdmin):
 class AdminProfileAdmin(admin.ModelAdmin):
     list_display = ("user", "email_verified")
     search_fields = ("user__email",)
+    readonly_fields = ("email_verification_token", "email_verification_sent_at")

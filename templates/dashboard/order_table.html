@@ -1,0 +1,5 @@
+<div class="table-wrap"><table><thead><tr><th>Заказ / дата</th><th>Клиент</th><th>Сумма</th><th>Состояние заказа</th><th>Оплата</th></tr></thead><tbody>
+{% for order in order_rows %}<tr><td><a href="{% url 'dashboard:order-detail' order.pk %}">{{ order.order_number }}</a><small>{{ order.created_at|date:"d.m.Y H:i" }}</small></td>
+<td>{{ order.user.get_full_name|default:"Без имени" }}<small>{{ order.user.phone_number|default:"—" }}</small></td><td class="money">{{ order.total_price }} сом</td>
+<td><span class="badge {{ order.status }}">{{ order.get_status_display }}</span></td><td><span class="badge {{ order.payment_status }}">{{ order.get_payment_status_display }}</span></td></tr>
+{% empty %}<tr><td colspan="5" class="empty">Заказов пока нет</td></tr>{% endfor %}</tbody></table></div>

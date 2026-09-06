@@ -20,7 +20,7 @@ class PhoneOrEmailBackend(ModelBackend):
             return None
 
         if password is None:
-            return user if self.user_can_authenticate(user) else None
+            return None
         if user.check_password(password) and self.user_can_authenticate(user):
             return user
         return None

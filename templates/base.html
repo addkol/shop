@@ -3,57 +3,195 @@
 <html lang="ru">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}Онлайн Магазин{% endblock %}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="description" content="Элит Маркет — товары для дома, электроника, одежда и аксессуары оптом и в розницу по Кыргызстану.">
+  <meta name="theme-color" content="#102f4c">
+  <title>{% block title %}Элит Маркет — оптом и в розницу{% endblock %}</title>
   <link rel="icon" href="{% static 'img/favicon.svg' %}" type="image/svg+xml">
-  <link href="{% static 'css/style.css' %}?v=20260710-mobile-orders-2" rel="stylesheet">
+  <link href="{% static 'css/style.css' %}?v=20260712-elite-market" rel="stylesheet">
+  <script src="{% static 'js/store.js' %}?v=20260905-cart-pricing" defer></script>
+  {% block extra_head %}{% endblock %}
 </head>
 <body>
-  <nav class="navbar navbar-expand-lg bg-white border-bottom sticky-top">
-    <div class="container">
-      <a class="navbar-brand fw-bold" href="{% url 'shop:index' %}">Онлайн Магазин</a>
-      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav">
-        <span class="navbar-toggler-icon"></span>
-      </button>
-      <div class="collapse navbar-collapse" id="mainNav">
-        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-          <li class="nav-item"><a class="nav-link" href="{% url 'shop:index' %}">Каталог</a></li>
-          <li class="nav-item"><a class="nav-link" href="{% url 'shop:cart' %}">Корзина <span class="badge text-bg-dark">{{ cart_quantity }}</span></a></li>
-        </ul>
-        <div class="d-flex align-items-center gap-2">
-          {% if request.user.is_authenticated %}
-            <a class="btn btn-outline-dark btn-sm" href="{% url 'accounts:profile' %}">Профиль</a>
-            <form method="post" action="{% url 'accounts:logout' %}">
-              {% csrf_token %}
-              <button class="btn btn-dark btn-sm" type="submit">Выход</button>
-            </form>
-          {% else %}
-            <a class="btn btn-outline-dark btn-sm" href="{% url 'accounts:login' %}">Войти</a>
-            <a class="btn btn-dark btn-sm" href="{% url 'accounts:register' %}">Новый аккаунт</a>
-          {% endif %}
-        </div>
-      </div>
-    </div>
-  </nav>
+  <a class="skip-link" href="#main-content">Перейти к содержимому</a>
 
-  <main class="py-4">
-    <div class="container">
-      {% if messages %}
-        <div class="messages mb-4">
-          {% for message in messages %}
-            <div class="alert alert-{{ message.tags|default:'info' }} mb-2" role="alert">{{ message }}</div>
+  <div class="announcement-bar">
+    <div class="container announcement-inner">
+      <span>Доставка по всему Кыргызстану</span>
+      <strong>Оптовые цены для бизнеса</strong>
+      <span>Поддержка: +996 (700) 111-222</span>
+    </div>
+  </div>
+
+  <header class="site-header">
+    <div class="container header-main">
+      <button class="icon-button mobile-menu-button" type="button" data-menu-open aria-label="Открыть меню" aria-controls="mobileMenu" aria-expanded="false">
+        <svg aria-hidden="true"><use href="{% static 'img/icons.svg' %}#menu"></use></svg>
+      </button>
+
+      <a class="brand-logo" href="{% url 'shop:index' %}" aria-label="Элит Маркет — на главную">
+        <span class="brand-mark">ЭМ</span>
+        <span><b>Элит Маркет</b><small>оптом и в розницу</small></span>
+      </a>
+
+      <form class="header-search" method="get" action="{% url 'shop:index' %}" role="search">
+        <label class="visually-hidden" for="headerSearch">Поиск товаров</label>
+        <svg aria-hidden="true"><use href="{% static 'img/icons.svg' %}#search"></use></svg>
+        <input id="headerSearch" type="search" name="q" value="{{ request.GET.q }}" placeholder="Найти товар, категорию или бренд" autocomplete="off">
+        <button type="submit">Найти</button>
+      </form>
+
+      <nav class="header-actions" aria-label="Действия пользователя">
+        {% if request.user.is_authenticated %}
+          <a class="header-action" href="{% url 'accounts:profile' %}">
+            <svg aria-hidden="true"><use href="{% static 'img/icons.svg' %}#user"></use></svg>
+            <span>Профиль</span>
+          </a>
+        {% else %}
+          <a class="header-action" href="{% url 'accounts:login' %}">
+            <svg aria-hidden="true"><use href="{% static 'img/icons.svg' %}#user"></use></svg>
+            <span>Войти</span>
+          </a>
+        {% endif %}
+        <button class="header-action cart-trigger" type="button" data-cart-open aria-controls="cartDrawer" aria-expanded="false">
+          <span class="action-icon-wrap">
+            <svg aria-hidden="true"><use href="{% static 'img/icons.svg' %}#cart"></use></svg>
+            <b class="cart-count">{{ cart_quantity }}</b>
+          </span>
+          <span>Корзина</span>
+        </button>
+      </nav>
+    </div>
+
+    <div class="container mobile-search-wrap">
+      <form class="header-search mobile-search" method="get" action="{% url 'shop:index' %}" role="search">
+        <svg aria-hidden="true"><use href="{% static 'img/icons.svg' %}#search"></use></svg>
+        <input type="search" name="q" value="{{ request.GET.q }}" placeholder="Поиск по каталогу" aria-label="Поиск по каталогу">
+        <button type="submit">Найти</button>
+      </form>
+    </div>
+
+    <nav class="catalog-nav" aria-label="Основная навигация">
+      <div class="container catalog-nav-inner">
+        <details class="catalog-dropdown">
+          <summary>
+            <svg aria-hidden="true"><use href="{% static 'img/icons.svg' %}#grid"></use></svg>
+            Все категории
+          </summary>
+          <div class="catalog-dropdown-panel">
+            {% for category in navigation_categories %}
+              <a href="{{ category.get_absolute_url }}">
+                <svg aria-hidden="true"><use href="{% static 'img/icons.svg' %}#{{ category.icon_name }}"></use></svg>
+                {{ category.name }}
+              </a>
+            {% endfor %}
+          </div>
+        </details>
+        <a href="{% url 'shop:index' %}#popular">Популярное</a>
+        <a href="{% url 'shop:index' %}#new">Новинки</a>
+        <a href="{% url 'shop:brands' %}">Бренды</a>
+        <a class="nav-sale" href="{% url 'shop:index' %}#catalog">Оптовые цены</a>
+        <span class="nav-spacer"></span>
+        <span class="nav-trust">Гарантия качества</span>
+      </div>
+    </nav>
+  </header>
+
+  <aside class="mobile-menu" id="mobileMenu" aria-hidden="true" data-mobile-menu>
+    <div class="drawer-head">
+      <strong>Меню</strong>
+      <button class="icon-button" type="button" data-menu-close aria-label="Закрыть меню">
+        <svg aria-hidden="true"><use href="{% static 'img/icons.svg' %}#close"></use></svg>
+      </button>
+    </div>
+    <div class="mobile-menu-body">
+      <a class="mobile-menu-main" href="{% url 'shop:index' %}">Главная</a>
+      <a class="mobile-menu-main" href="{% url 'shop:brands' %}">Бренды</a>
+      <details open>
+        <summary>Категории</summary>
+        <div class="mobile-category-list">
+          {% for category in navigation_categories %}
+            <a href="{{ category.get_absolute_url }}">
+              <svg aria-hidden="true"><use href="{% static 'img/icons.svg' %}#{{ category.icon_name }}"></use></svg>
+              {{ category.name }}
+            </a>
           {% endfor %}
         </div>
+      </details>
+      {% if request.user.is_authenticated %}
+        <a class="mobile-menu-main" href="{% url 'accounts:profile' %}">Профиль и заказы</a>
+        <form method="post" action="{% url 'accounts:logout' %}">{% csrf_token %}<button class="mobile-logout" type="submit">Выйти</button></form>
+      {% else %}
+        <a class="btn btn-primary w-100" href="{% url 'accounts:login' %}">Войти</a>
+        <a class="btn btn-outline-primary w-100" href="{% url 'accounts:register' %}">Создать аккаунт</a>
       {% endif %}
-      {% block content %}{% endblock %}
     </div>
+  </aside>
+
+  <aside class="cart-drawer" id="cartDrawer" aria-hidden="true" data-cart-drawer>
+    <div class="drawer-head">
+      <div><strong>Корзина</strong><span><span data-cart-quantity>{{ cart_quantity }}</span> товар(а)</span></div>
+      <button class="icon-button" type="button" data-cart-close aria-label="Закрыть корзину">
+        <svg aria-hidden="true"><use href="{% static 'img/icons.svg' %}#close"></use></svg>
+      </button>
+    </div>
+    <div class="cart-drawer-body">
+      {% for row in cart_preview_rows %}
+        <article class="mini-cart-item">
+          <a class="mini-cart-image" href="{{ row.product.get_absolute_url }}">
+            {% if row.product.main_image_url %}<img src="{{ row.product.main_image_url }}" alt="{{ row.product.name }}">{% else %}<img src="{% static 'img/no-image.svg' %}" alt="">{% endif %}
+          </a>
+          <div>
+            <a class="mini-cart-title" href="{{ row.product.get_absolute_url }}">{{ row.product.name }}</a>
+            <span>{{ row.quantity }} × {{ row.unit_price }} сом</span>
+            {% if row.is_wholesale %}<small>Оптовая цена применена</small>{% endif %}
+          </div>
+          <strong>{{ row.subtotal }} сом</strong>
+        </article>
+      {% empty %}
+        <div class="drawer-empty">
+          <svg aria-hidden="true"><use href="{% static 'img/icons.svg' %}#cart"></use></svg>
+          <strong>Корзина пока пуста</strong>
+          <span>Добавьте товары из каталога</span>
+        </div>
+      {% endfor %}
+    </div>
+    {% if cart_preview_rows %}
+      <div class="cart-drawer-footer">
+        <div><span>Итого</span><strong data-cart-total>{{ cart_preview_total }} сом</strong></div>
+        <a class="btn btn-primary w-100" href="{% url 'shop:cart' %}">Перейти в корзину</a>
+      </div>
+    {% endif %}
+  </aside>
+  <button class="page-overlay" type="button" data-overlay aria-label="Закрыть панель"></button>
+
+  <main id="main-content" class="site-main">
+    {% if messages %}
+      <div class="container messages">
+        {% for message in messages %}<div class="alert alert-{{ message.tags|default:'info' }}" role="alert">{{ message }}</div>{% endfor %}
+      </div>
+    {% endif %}
+    {% block content %}{% endblock %}
   </main>
 
-  <footer class="border-top py-4 mt-5">
-    <div class="container d-flex flex-column flex-md-row justify-content-between gap-2 small text-muted">
-      <span>Онлайн магазин для платежей в Киргизии</span>
-      <span>Finik QR, SMS-вход, админ-панель Django</span>
+  <footer class="site-footer">
+    <div class="container footer-grid">
+      <div class="footer-brand">
+        <a class="brand-logo brand-logo-footer" href="{% url 'shop:index' %}"><span class="brand-mark">ЭМ</span><span><b>Элит Маркет</b><small>Кыргызстан</small></span></a>
+        <p>Современный магазин товаров для жизни, бизнеса и дома. Розничные и оптовые цены в одном заказе.</p>
+      </div>
+      <div><h2>Покупателям</h2><a href="{% url 'shop:index' %}#catalog">Каталог</a><a href="{% url 'shop:cart' %}">Корзина</a><a href="{% url 'accounts:profile' %}">Мои заказы</a></div>
+      <div><h2>Информация</h2><a href="{% url 'shop:delivery' %}">Доставка и оплата</a><a href="{% url 'shop:returns' %}">Гарантия и возврат</a><a href="{% url 'shop:privacy' %}">Конфиденциальность</a><a href="{% url 'shop:terms' %}">Условия покупки</a></div>
+      <div><h2>Контакты</h2><a href="tel:+996700111222">+996 (700) 111-222</a><a href="mailto:hello@elitmarket.kg">hello@elitmarket.kg</a><span>Бишкек, Кыргызстан</span></div>
     </div>
+    <div class="container footer-bottom"><span>© {% now "Y" %} Элит Маркет. Все права защищены.</span><span>Безопасная оплата · Защищённое соединение</span></div>
   </footer>
+
+  <nav class="mobile-bottom-nav" aria-label="Мобильная навигация">
+    <a href="{% url 'shop:index' %}"><svg aria-hidden="true"><use href="{% static 'img/icons.svg' %}#home"></use></svg><span>Главная</span></a>
+    <button type="button" data-menu-open><svg aria-hidden="true"><use href="{% static 'img/icons.svg' %}#grid"></use></svg><span>Каталог</span></button>
+    <button type="button" data-cart-open class="mobile-cart-button"><svg aria-hidden="true"><use href="{% static 'img/icons.svg' %}#cart"></use></svg><b data-cart-quantity>{{ cart_quantity }}</b><span>Корзина</span></button>
+    <a href="{% if request.user.is_authenticated %}{% url 'accounts:profile' %}{% else %}{% url 'accounts:login' %}{% endif %}"><svg aria-hidden="true"><use href="{% static 'img/icons.svg' %}#user"></use></svg><span>Профиль</span></a>
+  </nav>
 </body>
 </html>
