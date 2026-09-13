@@ -471,9 +471,9 @@ rich==15.0.0 \
     # via
     #   bandit
     #   pip-audit
-selenium==4.48.0 \
-    --hash=sha256:045c1ec054c94e3be6c10febc509aa513b4c05e9146d1a9cf3de5375ec6ca2a1 \
-    --hash=sha256:b2a1d77019db92513e59aa2376710fe3d42b65a4d493dccd0c799c1a0d574d93
+selenium==4.49.0 \
+    --hash=sha256:0d1de9ec6977aa2d5f766d923d5076fdffa91681a8d4ffc9e3381a36839a20f2 \
+    --hash=sha256:c9d91274e5f55835e12b524adf1f231739ea811a8866d810e5bb42ba87cd8eda
     # via -r requirements-dev.in
 sniffio==1.3.1 \
     --hash=sha256:2f6da418d1f1e0fddd844478f41680e794e6051915791a034ff65e5f100525a2 \
