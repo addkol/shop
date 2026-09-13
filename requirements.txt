@@ -1283,9 +1283,9 @@ sqlparse==0.6.0 \
     --hash=sha256:113c35c75365ab9cc9c7231d68c6428fb11c085fc8e9eb1ad659b7ddbf6cd2b9 \
     --hash=sha256:b861c0288ce2fa56209a9a6412d2e066ac664b3873b89c26c9d8415e8e32996f
     # via django
-twilio==9.11.0 \
-    --hash=sha256:226a02b813851c21c8b2a2ce7bcb063b61edd76b31a11e0546a47e9ce4b7cc7c \
-    --hash=sha256:3de712da429d73955fa36210c2884cae077076985368094aec0d6743fb03dc2f
+twilio==9.11.1 \
+    --hash=sha256:bb700599c721f49a437bf6ee03b0f9cc729752646873985c94b4affaf88f113c \
+    --hash=sha256:d4e08cef8d7e437e9ad8c589a801842ccc4f7e46fd35366e315ec4ce6bb9e313
     # via -r requirements.in
 typing-extensions==4.16.0 \
     --hash=sha256:481caa481374e813c1b176ada14e97f1f67a4539ce9cfeb3f350d78d6370c2e8 \
